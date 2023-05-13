@@ -18,6 +18,9 @@ oldest_date = df['date'].min()
 # Replace NaT values (invalid dates) with the oldest valid date
 df['date'] = df['date'].fillna(oldest_date)
 
+# Remove rows with invalid dates and zero amounts
+df = df[(df['date'].notna()) & (df['amount'] != 0)]
+
 # Group the rows by account
 grouped = df.groupby('account')
 
