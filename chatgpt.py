@@ -1,5 +1,12 @@
+import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
+
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='Plot data with time resolution')
+parser.add_argument('resolution', choices=['days', 'weeks', 'months', 'quarters', 'years'],
+                    help='time resolution for plotting (days, weeks, months, quarters, or years)')
+args = parser.parse_args()
 
 # Load the CSV file into a DataFrame
 df = pd.read_csv('your_file.csv', delimiter=';')
@@ -22,12 +29,25 @@ df = df[(df['date'].notna()) & (df['amount'] != 0)]
 # Group the rows by account
 grouped = df.groupby('account')
 
+# Dictionary to map resolution options to resample rule parameters
+resolution_mapping = {
+    'days': 'D',
+    'weeks': 'W',
+    'months': 'M',
+    'quarters': 'Q',
+    'years': 'A'
+}
+
+# Get the resample rule parameter based on the selected resolution
+resample_rule = resolution_mapping[args.resolution]
+
 # Plotting both figures
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
 
 # Plot individual value curves for each account
 for account, data in grouped:
-    ax1.plot(data['date'], data['amount'], marker='o', linestyle='-', label=account)
+    data_resampled = data.set_index('date').resample(resample_rule).sum()
+    ax1.plot(data_resampled.index, data_resampled['amount'], marker='o', linestyle='-', label=account)
 
 ax1.set_xlabel('Date')
 ax1.set_ylabel('Amount')
@@ -38,8 +58,9 @@ ax1.legend()
 
 # Plot accumulated balance curves for each account
 for account, data in grouped:
-    accumulated_balance = data['amount'].cumsum()
-    ax2.plot(data['date'], accumulated_balance, marker='o', linestyle='-', label=account)
+    data_resampled = data.set_index('date').resample(resample_rule).sum()
+    accumulated_balance = data_resampled['amount'].cumsum()
+    ax2.plot(data_resampled.index, accumulated_balance, marker='o', linestyle='-', label=account)
 
 ax2.set_xlabel('Date')
 ax2.set_ylabel('Accumulated Balance')
