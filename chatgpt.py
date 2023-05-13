@@ -19,18 +19,31 @@ df['date'] = df['date'].fillna(oldest_date)
 # Group the rows by account
 grouped = df.groupby('account')
 
-# Plotting
-plt.figure(figsize=(10, 6))
+# Plotting both figures
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
 
-# Plot a curve for each account
+# Plot individual value curves for each account
 for account, data in grouped:
-    plt.plot(data['date'], data['amount'], marker='o', linestyle='-', label=account)
+    ax1.plot(data['date'], data['amount'], marker='o', linestyle='-', label=account)
 
-plt.xlabel('Date')
-plt.ylabel('Amount')
-plt.title('Amount over Time by Account')
-plt.grid(True)
-plt.xticks(rotation=45)
-plt.legend()
+ax1.set_xlabel('Date')
+ax1.set_ylabel('Amount')
+ax1.set_title('Amount over Time by Account (Individual Values)')
+ax1.grid(True)
+ax1.tick_params(axis='x', rotation=45)
+ax1.legend()
+
+# Plot accumulated balance curves for each account
+for account, data in grouped:
+    accumulated_balance = data['amount'].cumsum()
+    ax2.plot(data['date'], accumulated_balance, marker='o', linestyle='-', label=account)
+
+ax2.set_xlabel('Date')
+ax2.set_ylabel('Accumulated Balance')
+ax2.set_title('Accumulated Balance over Time by Account')
+ax2.grid(True)
+ax2.tick_params(axis='x', rotation=45)
+ax2.legend()
+
 plt.tight_layout()
 plt.show()
