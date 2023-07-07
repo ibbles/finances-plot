@@ -1,4 +1,5 @@
 import argparse
+import os
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -8,6 +9,7 @@ import matplotlib.pyplot as plt
 
 # Parse command line arguments.
 parser = argparse.ArgumentParser(description="Plot data with time resolution")
+parser.add_argument("filename")
 parser.add_argument(
     "resolution",
     choices=["days", "weeks", "months", "quarters", "years"],
@@ -15,6 +17,10 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
+file_path = os.path.realpath(__file__)
+dir_path = os.path.dirname(file_path)
+if not os.path.isfile(args.filename):
+    args.filename = os.path.join(dir_path, args.filename)
 
 # The CSV file we are working on has the following format:
 # "date";"bank";"account";"number";"mode";"payee";"comment";"quantity";"unit";"amount";"sign";"category";"status";"tracker";"bookmarked";"id";"idtransaction";"idgroup"
@@ -27,7 +33,7 @@ args = parser.parse_args()
 
 
 # Load the CSV file into a DataFrame.
-df = pd.read_csv("your_file.csv", delimiter=";")
+df = pd.read_csv(args.filename, delimiter=";")
 
 # Remove any leading/trailing spaces from column names.
 df.columns = df.columns.str.strip()

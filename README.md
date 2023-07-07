@@ -21,11 +21,11 @@ Virtual environment setup on Ubuntu 22.04:
 ➤ sudo apt install python3-tk
 
 # Run the script.
-➤ python3 $GIT_REPO/finances_plot.py
+➤ python3 $GIT_REPO/finances_plot.py CSV_FILENAME days
 ```
 
 To latest use the application:
 ```shell
 ➤ source venv/bin/activate.fish
-➤ python3 $GIT_REPO/finances_plot.py days
+➤ python3 $GIT_REPO/finances_plot.py CSV_FILENAME days
 ```
