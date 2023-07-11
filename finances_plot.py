@@ -1,4 +1,5 @@
 import argparse
+import importlib
 import matplotlib.pyplot as plt
 import os
 import pandas as pd
@@ -8,11 +9,41 @@ import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import ttk
 
+from tab import Tab
+
 
 def fail(message):
     print(message, file=sys.stderr)
     sys.exit(1)
 
+
+def get_app_root():
+    file_path = os.path.realpath(__file__)
+    dir_path = os.path.dirname(file_path)
+    return dir_path
+
+
+def path_in_app_root(path):
+    return os.path.join(get_app_root(), path)
+
+
+loaded_tabs = []
+
+
+def load_tabs(path):
+    path = path_in_app_root(path)
+    for dirpath, dirs, files in os.walk(path):
+        if dirpath not in sys.path:
+            sys.path.insert(0, dirpath)
+        for file in files:
+            (name, ext) = os.path.splitext(file)
+            if ext == os.extsep + "py":
+                module = importlib.import_module(name)
+                tab = module.get_tab()
+                loaded_tabs.append(tab)
+
+
+load_tabs("tabs")
 
 # Parse command line arguments.
 parser = argparse.ArgumentParser(description="Plot data with time resolution")
@@ -100,65 +131,9 @@ window.geometry("800x600")
 notebook = ttk.Notebook(window)
 notebook.pack(fill=tk.BOTH, expand=True)
 
-# Create a Frame for each tab.
-in_and_out_tab = ttk.Frame(notebook)
-notebook.add(in_and_out_tab, text="Transactions")
-
-# One figure plotting the sum of the transactions per
-# account per time unit.
-in_and_out_fig, in_and_out_ax = plt.subplots(figsize=(8, 4))
-
-# Plot transactions in and out of each account, grouped by the time resolution.
-for account, data in grouped:
-    data_resampled = data.set_index("date").resample(resample_rule).sum()
-    in_and_out_ax.plot(
-        data_resampled.index,
-        data_resampled["amount"],
-        marker="o",
-        linestyle="-",
-        label=account,
-    )
-
-in_and_out_ax.set_xlabel("Date")
-in_and_out_ax.set_ylabel("Amount")
-in_and_out_ax.set_title("Amount over Time by Account (Individual Values)")
-in_and_out_ax.grid(True)
-in_and_out_ax.tick_params(axis="x", rotation=45)
-in_and_out_ax.legend()
-
-# Embed the matplotlib plot into the tab
-canvas = FigureCanvasTkAgg(in_and_out_fig, master=in_and_out_tab)
-canvas.draw()
-canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-
-# A Figure plotting the amount of money in each account.
-balance_tab = ttk.Frame(notebook)
-notebook.add(balance_tab, text="Balance")
-balance_fig, balance_ax = plt.subplots(figsize=(8, 4))
-
-# Plot the amount of money in each account, grouped by the time resolution.
-for account, data in grouped:
-    data_resampled = data.set_index("date").resample(resample_rule).sum()
-    accumulated_balance = data_resampled["amount"].cumsum()
-    balance_ax.plot(
-        data_resampled.index,
-        accumulated_balance,
-        marker="o",
-        linestyle="-",
-        label=account,
-    )
-
-balance_ax.set_xlabel("Date")
-balance_ax.set_ylabel("Accumulated Balance")
-balance_ax.set_title("Accumulated Balance over Time by Account")
-balance_ax.grid(True)
-balance_ax.tick_params(axis="x", rotation=45)
-balance_ax.legend()
-
-# Embed the matplotlib plot into the tab
-canvas = FigureCanvasTkAgg(balance_fig, master=balance_tab)
-canvas.draw()
-canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+# for tab in tabs.values():
+for tab in loaded_tabs:
+    tab.init(notebook, grouped, resample_rule)
 
 
 def close_window():
