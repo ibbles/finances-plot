@@ -9,7 +9,9 @@ import matplotlib.pyplot as plt
 
 # Parse command line arguments.
 parser = argparse.ArgumentParser(description="Plot data with time resolution")
+# The file containing the exported account data.
 parser.add_argument("filename")
+# If plot points should be per day, week, month, etc.
 parser.add_argument(
     "resolution",
     choices=["days", "weeks", "months", "quarters", "years"],
@@ -17,6 +19,8 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
+# Find the data file, either relative to the current working directory, or
+# relative to this script file.
 file_path = os.path.realpath(__file__)
 dir_path = os.path.dirname(file_path)
 if not os.path.isfile(args.filename):
@@ -25,11 +29,22 @@ if not os.path.isfile(args.filename):
 # The CSV file we are working on has the following format:
 # "date";"bank";"account";"number";"mode";"payee";"comment";"quantity";"unit";"amount";"sign";"category";"status";"tracker";"bookmarked";"id";"idtransaction";"idgroup"
 #
+# Many columns are ignored.
+#
 # Each row, except for the heading, contains one transaction.
 #
 # The "date" column is given in "YYYY-MM-DD" format, a.k.a. '%Y-%m-%d'.
 # Some transactions have an all-zero date, the "amount" column then give the
-# opening balance for that account.
+# opening balance for that account. There is exactly one such row for each
+# account and it is always the first row for that account.
+#
+# The "account" column is the name of the account that the current transaction
+# modifies. Transactions that involve multiple accounts, i.e. transfers,
+# consists of two or more rows, for for each account in the group, and they are
+# identified as a pair by having the same value in the "idgroup" column. All
+# single-account transactions have a 0 in the "idgroup" column.
+#
+# The "quantity" and "amount" columns always contains the same value.
 
 
 # Load the CSV file into a DataFrame.
@@ -41,20 +56,21 @@ df.columns = df.columns.str.strip()
 # Convert the 'date' column to datetime format, handling invalid dates.
 df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d", errors="coerce")
 
-# Find the oldest valid date.
+# Find the oldest valid date. This will be used as the starting date for the
+# entire data set.
 oldest_date = df["date"].min()
 
 # Replace NaT values (invalid dates) with the oldest valid date.
 # This is typically the all-zero opening balance transactions.
 df["date"] = df["date"].fillna(oldest_date)
 
-# Remove rows with invalid dates and zero amounts
+# Remove rows with invalid dates and zero amounts.
 df = df[(df["date"].notna()) & (df["amount"] != 0)]
 
-# Group the rows by account
+# Group the rows by account.
 grouped = df.groupby("account")
 
-# Dictionary to map resolution options to resample rule parameters
+# Dictionary to map resolution options to resample rule parameters.
 resolution_mapping = {
     "days": "D",
     "weeks": "W",
@@ -63,16 +79,18 @@ resolution_mapping = {
     "years": "A",
 }
 
-# Get the resample rule parameter based on the selected resolution
+# Get the resample rule parameter based on the selected resolution.
 resample_rule = resolution_mapping[args.resolution]
 
-# Plotting both figures
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+# One figure containing two axes, one plotting the sum of the transactions per
+# account per time unit, and another plotting the amount of money in the
+# account.
+fig, (in_and_out, balance) = plt.subplots(1, 2, figsize=(15, 6))
 
-# Plot individual value curves for each account
+# Plot transactions in and out of each account, grouped by the time resolution.
 for account, data in grouped:
     data_resampled = data.set_index("date").resample(resample_rule).sum()
-    ax1.plot(
+    in_and_out.plot(
         data_resampled.index,
         data_resampled["amount"],
         marker="o",
@@ -80,18 +98,18 @@ for account, data in grouped:
         label=account,
     )
 
-ax1.set_xlabel("Date")
-ax1.set_ylabel("Amount")
-ax1.set_title("Amount over Time by Account (Individual Values)")
-ax1.grid(True)
-ax1.tick_params(axis="x", rotation=45)
-ax1.legend()
+in_and_out.set_xlabel("Date")
+in_and_out.set_ylabel("Amount")
+in_and_out.set_title("Amount over Time by Account (Individual Values)")
+in_and_out.grid(True)
+in_and_out.tick_params(axis="x", rotation=45)
+in_and_out.legend()
 
-# Plot accumulated balance curves for each account
+# Plot the amount of money in each account, grouped by the time resolution.
 for account, data in grouped:
     data_resampled = data.set_index("date").resample(resample_rule).sum()
     accumulated_balance = data_resampled["amount"].cumsum()
-    ax2.plot(
+    balance.plot(
         data_resampled.index,
         accumulated_balance,
         marker="o",
@@ -99,12 +117,12 @@ for account, data in grouped:
         label=account,
     )
 
-ax2.set_xlabel("Date")
-ax2.set_ylabel("Accumulated Balance")
-ax2.set_title("Accumulated Balance over Time by Account")
-ax2.grid(True)
-ax2.tick_params(axis="x", rotation=45)
-ax2.legend()
+balance.set_xlabel("Date")
+balance.set_ylabel("Accumulated Balance")
+balance.set_title("Accumulated Balance over Time by Account")
+balance.grid(True)
+balance.tick_params(axis="x", rotation=45)
+balance.legend()
 
 plt.tight_layout()
 plt.show()
