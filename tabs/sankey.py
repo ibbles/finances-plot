@@ -25,6 +25,7 @@ def init_tab(notebook, account_name, data):
     flows = []
     labels = []
     orientations = []
+    pathlengths = []
 
     income_category_to_index = {}
     expense_category_to_index = {}
@@ -40,8 +41,10 @@ def init_tab(notebook, account_name, data):
         next_index += 1
         income_category_to_index[category_name] = index
         flows.append(amount)
-        labels.append(category_name)
-        orientations.append(1)
+        labels.append(category_name.removeprefix("Income > "))
+        # orientations.append(1)
+        orientations.append(0)
+        pathlengths.append(next_index * 10)
 
     print("Expense:")
     for category_name, category_data in expense_categories:
@@ -52,11 +55,13 @@ def init_tab(notebook, account_name, data):
         next_index += 1
         expense_category_to_index[category_name] = index
         flows.append(amount)
-        labels.append(category_name)
-        orientations.append(-1)
+        labels.append(category_name.removeprefix("Expense > "))
+        # orientations.append(-1)
+        orientations.append(0)
+        pathlengths.append(next_index * 10)
 
     sankey = Sankey(
-        ax=sankey_ax, scale=0.01, offset=0.2, head_angle=180, format="%.0f", unit="SEK"
+        ax=sankey_ax, scale=0.01, offset=0.2, head_angle=180, format="%.0f", unit=" SEK"
     )
     sankey.add(
         # flows=[100, -30, -60, -10], labels=['In', 'Out1', 'Out2', 'Out3'],
@@ -64,6 +69,8 @@ def init_tab(notebook, account_name, data):
         flows=flows,
         labels=labels,
         orientations=orientations,
+        pathlengths=pathlengths,
+        trunklength=200,
     )
     sankey.finish()
 

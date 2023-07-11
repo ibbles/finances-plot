@@ -87,7 +87,7 @@ if not os.path.isfile(filename):
 
 
 # Load the CSV file into a DataFrame.
-df = pd.read_csv(args.filename, delimiter=";")
+df = pd.read_csv(filename, delimiter=";")
 
 # Remove any leading/trailing spaces from column names.
 df.columns = df.columns.str.strip()
