@@ -41,9 +41,9 @@ def init_tab(notebook, grouped, resample_rule):
 
 
 class TransactionsTab(tab.Tab):
-    def init(self, notebook, grouped, resample_rule):
+    def init(self, notebook, transactions, by_account, resample_rule):
         print("TransactionsTab.init")
-        init_tab(notebook, grouped, resample_rule)
+        init_tab(notebook, by_account, resample_rule)
 
 
 def get_tab():

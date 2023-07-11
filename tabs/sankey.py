@@ -1,0 +1,87 @@
+import tab
+
+import matplotlib.pyplot as plt
+import tkinter as tk
+
+from matplotlib.sankey import Sankey
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from tkinter import ttk
+
+
+def init_tab(notebook, account_name, data):
+    # A Figure plotting the amount of money in each account.
+    sankey_tab = ttk.Frame(notebook)
+    notebook.add(sankey_tab, text=f"Sankey {account_name}")
+    sankey_fig, sankey_ax = plt.subplots(figsize=(8, 4))
+
+    # Ignore zero-amount transactions.
+    income = data[data["amount"] > 0]
+    expense = data[data["amount"] < 0]
+
+    income_categories = income.groupby("category")
+    expense_categories = expense.groupby("category")
+
+    next_index = 0
+    flows = []
+    labels = []
+    orientations = []
+
+    income_category_to_index = {}
+    expense_category_to_index = {}
+
+    print(f"\n{account_name}:")
+
+    print("Income:")
+    for category_name, category_data in income_categories:
+        amount = category_data["amount"].sum()
+        print(f"{category_name=}")
+        print(f"{amount=}")
+        index = next_index
+        next_index += 1
+        income_category_to_index[category_name] = index
+        flows.append(amount)
+        labels.append(category_name)
+        orientations.append(1)
+
+    print("Expense:")
+    for category_name, category_data in expense_categories:
+        amount = category_data["amount"].sum()
+        print(f"{category_name=}")
+        print(f"{amount=}")
+        index = next_index
+        next_index += 1
+        expense_category_to_index[category_name] = index
+        flows.append(amount)
+        labels.append(category_name)
+        orientations.append(-1)
+
+    sankey = Sankey(
+        ax=sankey_ax, scale=0.01, offset=0.2, head_angle=180, format="%.0f", unit="SEK"
+    )
+    sankey.add(
+        # flows=[100, -30, -60, -10], labels=['In', 'Out1', 'Out2', 'Out3'],
+        # orientations=[1, -1, -1, -1])
+        flows=flows,
+        labels=labels,
+        orientations=orientations,
+    )
+    sankey.finish()
+
+    sankey_ax.set_title(f"Sankey {account_name}")
+
+    # Embed the matplotlib plot into the tab
+    canvas = FigureCanvasTkAgg(sankey_fig, master=sankey_tab)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+
+class sankeyTab(tab.Tab):
+    def init(self, notebook, transactions, by_account, resample_rule):
+        print("SankeyTab.init")
+        init_tab(notebook, "All", transactions)
+        for account_name, data in by_account:
+            init_tab(notebook, account_name, data)
+
+
+def get_tab():
+    return sankeyTab()

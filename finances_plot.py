@@ -108,7 +108,7 @@ df["date"] = df["date"].fillna(oldest_date)
 df = df[(df["date"].notna()) & (df["amount"] != 0)]
 
 # Group the rows by account.
-grouped = df.groupby("account")
+by_account = df.groupby("account")
 
 # Dictionary to map resolution options to resample rule parameters.
 resolution_mapping = {
@@ -133,7 +133,7 @@ notebook.pack(fill=tk.BOTH, expand=True)
 
 # for tab in tabs.values():
 for tab in loaded_tabs:
-    tab.init(notebook, grouped, resample_rule)
+    tab.init(notebook, df, by_account, resample_rule)
 
 
 def close_window():
