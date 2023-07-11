@@ -1,30 +1,38 @@
 import argparse
+import matplotlib.pyplot as plt
 import os
 import pandas as pd
-import matplotlib.pyplot as plt
+import sys
+import tkinter as tk
 
-# Not sure if or when this is needed.
-# import matplotlib
-# matplotlib.use("TkAgg")
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from tkinter import ttk
+
+
+def fail(message):
+    print(message, file=sys.stderr)
+    sys.exit(1)
+
 
 # Parse command line arguments.
 parser = argparse.ArgumentParser(description="Plot data with time resolution")
-# The file containing the exported account data.
-parser.add_argument("filename")
-# If plot points should be per day, week, month, etc.
+parser.add_argument("filename", help="The file containing the exported account data.")
 parser.add_argument(
     "resolution",
     choices=["days", "weeks", "months", "quarters", "years"],
-    help="time resolution for plotting (days, weeks, months, quarters, or years)",
+    help="Time resolution for plotting.",
 )
 args = parser.parse_args()
 
 # Find the data file, either relative to the current working directory, or
 # relative to this script file.
-file_path = os.path.realpath(__file__)
-dir_path = os.path.dirname(file_path)
-if not os.path.isfile(args.filename):
-    args.filename = os.path.join(dir_path, args.filename)
+filename = args.filename
+if not os.path.isfile(filename):
+    file_path = os.path.realpath(__file__)
+    dir_path = os.path.dirname(file_path)
+    filename = os.path.join(dir_path, args.filename)
+if not os.path.isfile(filename):
+    fail(f"Could not open file '{args.filename}'. Also tried {filename}")
 
 # The CSV file we are working on has the following format:
 # "date";"bank";"account";"number";"mode";"payee";"comment";"quantity";"unit";"amount";"sign";"category";"status";"tracker";"bookmarked";"id";"idtransaction";"idgroup"
@@ -57,7 +65,7 @@ df.columns = df.columns.str.strip()
 df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d", errors="coerce")
 
 # Find the oldest valid date. This will be used as the starting date for the
-# entire data set.
+# data set as a whole.
 oldest_date = df["date"].min()
 
 # Replace NaT values (invalid dates) with the oldest valid date.
@@ -65,6 +73,7 @@ oldest_date = df["date"].min()
 df["date"] = df["date"].fillna(oldest_date)
 
 # Remove rows with invalid dates and zero amounts.
+# NOTE: What would cause a transaction to have a zero amount?
 df = df[(df["date"].notna()) & (df["amount"] != 0)]
 
 # Group the rows by account.
@@ -82,15 +91,27 @@ resolution_mapping = {
 # Get the resample rule parameter based on the selected resolution.
 resample_rule = resolution_mapping[args.resolution]
 
-# One figure containing two axes, one plotting the sum of the transactions per
-# account per time unit, and another plotting the amount of money in the
-# account.
-fig, (in_and_out, balance) = plt.subplots(1, 2, figsize=(15, 6))
+# Create the main Tkinter window.
+window = tk.Tk()
+window.title("Finances Plot")
+window.geometry("800x600")
+
+# Create the Notebook widget for the tabs.
+notebook = ttk.Notebook(window)
+notebook.pack(fill=tk.BOTH, expand=True)
+
+# Create a Frame for each tab.
+in_and_out_tab = ttk.Frame(notebook)
+notebook.add(in_and_out_tab, text="Transactions")
+
+# One figure plotting the sum of the transactions per
+# account per time unit.
+in_and_out_fig, in_and_out_ax = plt.subplots(figsize=(8, 4))
 
 # Plot transactions in and out of each account, grouped by the time resolution.
 for account, data in grouped:
     data_resampled = data.set_index("date").resample(resample_rule).sum()
-    in_and_out.plot(
+    in_and_out_ax.plot(
         data_resampled.index,
         data_resampled["amount"],
         marker="o",
@@ -98,18 +119,28 @@ for account, data in grouped:
         label=account,
     )
 
-in_and_out.set_xlabel("Date")
-in_and_out.set_ylabel("Amount")
-in_and_out.set_title("Amount over Time by Account (Individual Values)")
-in_and_out.grid(True)
-in_and_out.tick_params(axis="x", rotation=45)
-in_and_out.legend()
+in_and_out_ax.set_xlabel("Date")
+in_and_out_ax.set_ylabel("Amount")
+in_and_out_ax.set_title("Amount over Time by Account (Individual Values)")
+in_and_out_ax.grid(True)
+in_and_out_ax.tick_params(axis="x", rotation=45)
+in_and_out_ax.legend()
+
+# Embed the matplotlib plot into the tab
+canvas = FigureCanvasTkAgg(in_and_out_fig, master=in_and_out_tab)
+canvas.draw()
+canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+# A Figure plotting the amount of money in each account.
+balance_tab = ttk.Frame(notebook)
+notebook.add(balance_tab, text="Balance")
+balance_fig, balance_ax = plt.subplots(figsize=(8, 4))
 
 # Plot the amount of money in each account, grouped by the time resolution.
 for account, data in grouped:
     data_resampled = data.set_index("date").resample(resample_rule).sum()
     accumulated_balance = data_resampled["amount"].cumsum()
-    balance.plot(
+    balance_ax.plot(
         data_resampled.index,
         accumulated_balance,
         marker="o",
@@ -117,12 +148,25 @@ for account, data in grouped:
         label=account,
     )
 
-balance.set_xlabel("Date")
-balance.set_ylabel("Accumulated Balance")
-balance.set_title("Accumulated Balance over Time by Account")
-balance.grid(True)
-balance.tick_params(axis="x", rotation=45)
-balance.legend()
+balance_ax.set_xlabel("Date")
+balance_ax.set_ylabel("Accumulated Balance")
+balance_ax.set_title("Accumulated Balance over Time by Account")
+balance_ax.grid(True)
+balance_ax.tick_params(axis="x", rotation=45)
+balance_ax.legend()
 
-plt.tight_layout()
-plt.show()
+# Embed the matplotlib plot into the tab
+canvas = FigureCanvasTkAgg(balance_fig, master=balance_tab)
+canvas.draw()
+canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+
+def close_window():
+    window.quit()
+    window.destroy()
+
+
+window.protocol("WM_DELETE_WINDOW", close_window)
+
+# Run the Tkinter event loop.
+window.mainloop()
