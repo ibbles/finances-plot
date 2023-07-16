@@ -1,0 +1,73 @@
+import tab
+
+import tkinter as tk
+from tkinter import ttk
+import matplotlib.pyplot as plt
+import pandas as pd
+
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+
+def init_tab(notebook, df, resolution):
+    # Create a Frame for the tab
+    tab = ttk.Frame(notebook)
+    notebook.add(tab, text="Category Chart")
+
+    # Group the rows by category
+    grouped = df.groupby("category")
+
+    # Create an empty DataFrame to store the resampled data
+    resampled_data = pd.DataFrame()
+
+    # Resample each group and concatenate to the combined DataFrame
+    for category, data in grouped:
+        data_resampled = data.set_index("date").resample(resolution).sum()
+        data_resampled["category"] = category  # Add the category column
+        resampled_data = pd.concat([resampled_data, data_resampled])
+
+    # Create a bar chart showing transactions with different categories
+    fig, ax = plt.subplots(figsize=(8, 4))
+    categories = resampled_data["category"].unique()
+    num_categories = len(categories)
+    date_range = resampled_data.index.max() - resampled_data.index.min()
+    total_days = date_range.days  # Extract total number of days from Timedelta
+    bar_width = total_days / len(resampled_data.index) / num_categories
+    colors = plt.cm.get_cmap("Set3").colors
+
+    for i, category in enumerate(categories):
+        category_data = resampled_data[resampled_data["category"] == category]
+        bar_positions = range(i, len(category_data) * num_categories, num_categories)
+        ax.bar(
+            bar_positions,
+            category_data["amount"],
+            width=bar_width,
+            align="edge",
+            label=category,
+            color=colors[i % len(colors)],
+        )
+
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Amount")
+    ax.set_title("Transaction Amount by Category")
+    ax.legend()
+    ax.grid(True)
+    ax.tick_params(axis="x", rotation=45)
+
+    # Adjust x-axis tick positions and labels
+    # ax.set_xticks(range(num_categories))
+    # ax.set_xticklabels(resampled_data.index.strftime("%Y-%m-%d"))
+
+    # Embed the matplotlib plot into the tab
+    canvas = FigureCanvasTkAgg(fig, master=tab)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+
+class BarsTab(tab.Tab):
+    def init(self, notebook, transactions, by_account, resample_rule):
+        print("BarsTab.init")
+        init_tab(notebook, transactions, resample_rule)
+
+
+def get_tab():
+    return BarsTab()
