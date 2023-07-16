@@ -1,15 +1,11 @@
 import argparse
 import importlib
-import matplotlib.pyplot as plt
 import os
 import pandas as pd
 import sys
 import tkinter as tk
 
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import ttk
-
-from tab import Tab
 
 
 def fail(message):
@@ -32,15 +28,27 @@ loaded_tabs = []
 
 def load_tabs(path):
     path = path_in_app_root(path)
+    # TODO: Will this walk recursively as-is, or do I need a recursive call for
+    # each subdirectory?
     for dirpath, dirs, files in os.walk(path):
         if dirpath not in sys.path:
             sys.path.insert(0, dirpath)
         for file in files:
             (name, ext) = os.path.splitext(file)
             if ext == os.extsep + "py":
-                module = importlib.import_module(name)
-                tab = module.get_tab()
-                loaded_tabs.append(tab)
+                try:
+                    module = importlib.import_module(name)
+                    if hasattr(module, "get_tab"):
+                        tab = module.get_tab()
+                        loaded_tabs.append(tab)
+                    else:
+                        print(f"Error: Tab '{name}' does not have 'get_tab' function.")
+                except ImportError as e:
+                    print(f"Error: Could not load tab '{name}': {e}")
+                except SyntaxError as e:
+                    print(f"Error: Could not load tab '{name}': {e}")
+                    print(e.text)
+                    print(f'{" "*(e.offset - 1)}^{"~"*(e.end_offset - e.offset - 1)}')
 
 
 load_tabs("tabs")
