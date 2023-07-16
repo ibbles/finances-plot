@@ -133,7 +133,7 @@ resample_rule = resolution_mapping[args.resolution]
 # Create the main Tkinter window.
 window = tk.Tk()
 window.title("Finances Plot")
-window.geometry("800x600")
+window.geometry("1920x1080")
 
 # Create the Notebook widget for the tabs.
 notebook = ttk.Notebook(window)
