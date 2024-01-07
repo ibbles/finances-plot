@@ -24,7 +24,7 @@ Virtual environment setup on Ubuntu 22.04:
 ➤ python3 $GIT_REPO/finances_plot.py CSV_FILENAME days
 ```
 
-To latest use the application:
+To later use the application:
 ```shell
 ➤ source venv/bin/activate.fish
 ➤ python3 $GIT_REPO/finances_plot.py CSV_FILENAME days
