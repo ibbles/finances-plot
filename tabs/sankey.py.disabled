@@ -8,6 +8,12 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from tkinter import ttk
 
 
+
+#
+# Disabled because it generates unreadable garbage plots.
+#
+
+
 def init_tab(notebook, account_name, data):
     # A Figure plotting the amount of money in each account.
     sankey_tab = ttk.Frame(notebook)
