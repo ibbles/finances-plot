@@ -181,7 +181,8 @@ def xml_to_csv(xml_file):
                     transactions.append(
                         {
                             "date": transaction_elem.get("postdate"),
-                            "amount": value,
+                            # Value negated because we record the account side but value is from the category side.
+                            "amount": -value,
                             "account": account_name,
                             "category": category_name,
                             "payee": payees.get(split.get("payee"), ""),
