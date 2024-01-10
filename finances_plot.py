@@ -74,11 +74,17 @@ if not os.path.isfile(filename):
     fail(f"Could not open file '{args.filename}'. Also tried {filename}")
 
 # The CSV file we are working on has the following format:
-# "date";"bank";"account";"number";"mode";"payee";"comment";"quantity";"unit";"amount";"sign";"category";"status";"tracker";"bookmarked";"id";"idtransaction";"idgroup"
+#   date;amount;account;category;payee;memo
 #
-# Many columns are ignored.
+# It is created by kmy_to_csv.py.
+# It reads an XML file created from the KMY file.
+# The XML file is created with:
+#   zcat MyFinancials.kmy > MyFinancials.xml
 #
-# Each row, except for the heading, contains one transaction.
+# Each row, except for the heading, contains one endpoint of a transaction.
+# Most transactions have two endpoints: the source and the destination. However,
+# we only record our own accounts so any transactions that have an endpoint
+# elsewhere, such as a store, will only have one endpoint included in the data.
 #
 # The "date" column is given in "YYYY-MM-DD" format, a.k.a. '%Y-%m-%d'.
 # Some transactions have an all-zero date, the "amount" column then give the

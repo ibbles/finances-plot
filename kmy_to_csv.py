@@ -4,13 +4,17 @@ import sys
 import xml.etree.ElementTree as ET
 import pandas as pd
 
-# Include the following columns:
+# This script converts an KMyMoney XML file to a CSV file that we can plot.
+# To convert a KMY file to an XML file use 'zcat' as follows:
+#   zcat MyFinancials.kmy > MyFinancials.xml
+
+# The generated CSV file includes the following columns:
 # - date: In %Y-%m-%d format.
 # - amount: The amount of money moved.
 # - account: The name of the account modified.
 # - category: The expence category. Not included for transfers.
 
-# How kmy.xml files work:
+# How KMyMoney XML files work:
 # - Every piece of data has an ID.
 #   - IDs are integers with a one-character prefix.
 #   - The prefix identifies the type.
