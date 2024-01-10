@@ -1,10 +1,10 @@
-
 import argparse
 import xml.etree.ElementTree as ET
 import pandas as pd
 
 # To convert a kmy file to an XML file:
 #   zcat MyFinancials.kmy > MyFinancials.xml
+
 
 def xml_to_csv(xml_file):
     # Parse the XML file.
@@ -13,13 +13,13 @@ def xml_to_csv(xml_file):
 
     accounts = []
     categories = []
-    for account_elem in root.findall('./ACCOUNTS/ACCOUNT'):
+    for account_elem in root.findall("./ACCOUNTS/ACCOUNT"):
         account_data = {
-            'parent': account_elem.get('parentaccount'),
-            'id': account_elem.get('id'),
-            'name': account_elem.get('name'),
+            "parent": account_elem.get("parentaccount"),
+            "id": account_elem.get("id"),
+            "name": account_elem.get("name"),
         }
-        if account_data['parent'] == "AStd::Asset":
+        if account_data["parent"] == "AStd::Asset":
             accounts.append(account_data)
         else:
             categories.append(account_data)
@@ -34,8 +34,12 @@ def xml_to_csv(xml_file):
 
 def main():
     # Parse command line arguments.
-    parser = argparse.ArgumentParser(description="Convert a KMyMoney XML file to a CSV file.")
-    parser.add_argument("filename", help="The file containing the KMyMoney XML document.")
+    parser = argparse.ArgumentParser(
+        description="Convert a KMyMoney XML file to a CSV file."
+    )
+    parser.add_argument(
+        "filename", help="The file containing the KMyMoney XML document."
+    )
     args = parser.parse_args()
     filename = args.filename
     xml_to_csv(filename)
