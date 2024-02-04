@@ -56,7 +56,7 @@ import pandas as pd
 # is split into more than two parts.
 
 
-def get_value(split, transaction_id):
+def get_value(split, transaction_id) -> float:
     """Read a quotient value and evaluate the expression to a floating point value."""
     value_expr = split.get("value")
     if value_expr is None:
@@ -71,7 +71,8 @@ def get_value(split, transaction_id):
         )
         return None
 
-    value = int(values[0]) / int(values[1])
+    # I hope float precision is good enough for these numbers.
+    value = float(values[0]) / float(values[1])
     return value
 
 
@@ -145,8 +146,8 @@ def xml_to_csv(xml_file):
                 continue
 
             account_name = accounts[account_split.get("account")]
-            account_value = get_value(account_split, transaction_id)
-            if account_value == 0:
+            account_value : float = get_value(account_split, transaction_id)
+            if account_value == 0.0:
                 continue
 
             if len(splits) == 2 and splits[1].get("account") in accounts:
@@ -209,7 +210,9 @@ def xml_to_csv(xml_file):
                         continue
 
                     category_name = categories[split.get("account")]["name"]
-                    value = get_value(split, transaction_id)
+                    value: float = get_value(split, transaction_id)
+                    if value is None:
+                        continue
                     if sign(value) == sign(account_value):
                         print(
                             f"Invalid transaction {transaction_id}: "
@@ -248,51 +251,12 @@ def xml_to_csv(xml_file):
 
     # CSV data gathering complete, write to file.
     df = pd.DataFrame(transactions)
-    df.to_csv("output.csv", sep=";", index=False)
-
-
-def xml_to_csv__gpt(xml_file):
-    # Parse the XML file.
-    tree = ET.parse(xml_file)
-    root = tree.getroot()
-
-    # Extract data from XML
-    transactions = []
-    for transaction_elem in root.findall(".//TRANSACTION"):
-        transaction_data = {
-            "id": transaction_elem.get("id"),
-            "postdate": transaction_elem.get("postdate"),
-        }
-        for split_elem in transaction_elem.findall(".//SPLIT"):
-            split_data = {
-                "id": split_elem.get("id"),
-                "account": split_elem.get("account"),
-                "value": split_elem.get("value"),
-            }
-            transaction_data.setdefault("splits", []).append(split_data)
-        transactions.append(transaction_data)
-
-    # Convert data to DataFrame
-    data = []
-    for transaction in transactions:
-        for split in transaction["splits"]:
-            data.append(
-                {
-                    "transaction_id": transaction["id"],
-                    "postdate": transaction["postdate"],
-                    "split_id": split["id"],
-                    "account": split["account"],
-                    "value": split["value"],
-                }
-            )
-
-    df = pd.DataFrame(data)
-
-    # Save DataFrame to CSV
-    df.to_csv("output.csv", index=False)
+    csv_path = xml_file.removesuffix(".xml") + ".csv"
+    df.to_csv(csv_path, sep=";", index=False)
 
 
 def main():
+    """The main function."""
     # Parse command line arguments.
     parser = argparse.ArgumentParser(
         description="Convert a KMyMoney XML file to a CSV file."
