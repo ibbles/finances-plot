@@ -2,7 +2,6 @@ import pandas as pd
 import tkinter as tk
 from tkinter import ttk
 import matplotlib.pyplot as plt
-
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
@@ -23,7 +22,7 @@ notebook.pack(fill=tk.BOTH, expand=True)
 
 # Parse the command line arguments to get the filename and resolution
 filename = "ibbles.csv"
-resolution = "D"
+default_resolution = "D"
 
 # Load the CSV file into a DataFrame
 df = pd.read_csv(filename, delimiter=";")
@@ -46,20 +45,9 @@ df = df[(df["date"].notna()) & (df["amount"] != 0)]
 # Group the rows by account
 grouped = df.groupby("account")
 
-# Create a tab for each plot type
-for plot_type, plot_title in plot_types.items():
-    # Create a Frame for each tab
-    tab = ttk.Frame(notebook)
-    notebook.add(tab, text=plot_type.capitalize())
 
-    # Create the plot in the Frame
-    fig, ax = plt.subplots(figsize=(8, 4))
-    ax.set_xlabel("Date")
-    ax.set_ylabel("Amount")
-    ax.set_title(plot_title)
-
-    # Plot transactions in and out of each account, grouped by the time
-    # resolution
+def plot_accounts(ax, resolution, plot_title):
+    # Plot transactions in and out of each account, grouped by the time resolution
     for account, data in grouped:
         data_resampled = data.set_index("date").resample(resolution).sum()
         ax.plot(
@@ -69,28 +57,70 @@ for plot_type, plot_title in plot_types.items():
             linestyle="-",
             label=account,
         )
-
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Amount")
+    ax.set_title(plot_title)
     ax.grid(True)
     ax.tick_params(axis="x", rotation=45)
     ax.legend()
 
+
+
+# Create a tab for each plot type
+for plot_type, plot_title in plot_types.items():
+    # Create a Frame for each tab
+    tab = ttk.Frame(notebook)
+    notebook.add(tab, text=plot_type.capitalize())
+
+    # Create the plot in the Frame
+    fig, ax = plt.subplots(figsize=(8, 4))
+
+    plot_accounts(ax, default_resolution, plot_title)
+
+    # Create a callback function for the checkbox
+    def make_update_plot(state_var, canvas, ax, plot_title):
+        def update_plot():
+            print("Checkbox state:", state_var.get())
+            ax.clear()
+            if state_var.get():
+                plot_accounts(ax, "D", plot_title)
+            else:
+                plot_accounts(ax, "Y", plot_title)
+            canvas.draw()
+
+        return update_plot
+
     # Embed the matplotlib plot into the tab
     canvas = FigureCanvasTkAgg(fig, master=tab)
+
+    # Create settings panel
+    settings_panel = ttk.Frame(tab)
+    settings_panel.pack(side=tk.LEFT, fill=tk.Y)
+
+    # Create the checkbox in the settings panel
+    checkbox_var = tk.BooleanVar()
+    checkbox = ttk.Checkbutton(
+        settings_panel,
+        text="Enable Plot Update",
+        variable=checkbox_var,
+        command=make_update_plot(checkbox_var, canvas, ax, plot_title)
+    )
+    checkbox.grid(row=0, column=0, sticky=tk.W)
+
     canvas.draw()
-    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+    canvas.get_tk_widget().pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
 # Select the first tab by default
 notebook.select(0)
 
 
 def close_window():
-    print("Closing window.")
+    """Callback function registered with the WM_DELETE_WINDOW event."""
     window.quit()
     window.destroy()
 
-
 window.protocol("WM_DELETE_WINDOW", close_window)
-print("Close window callback configured.")
+
 
 # Run the Tkinter event loop.
 window.mainloop()
