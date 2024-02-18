@@ -1,73 +1,96 @@
-import argparse
 import pandas as pd
+import tkinter as tk
+from tkinter import ttk
 import matplotlib.pyplot as plt
 
-# Parse command line arguments
-parser = argparse.ArgumentParser(description='Plot data with time resolution')
-parser.add_argument('resolution', choices=['days', 'weeks', 'months', 'quarters', 'years'],
-                    help='time resolution for plotting (days, weeks, months, quarters, or years)')
-args = parser.parse_args()
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+
+# Define the plot types and their titles
+plot_types = {
+    "individual": "Amount over Time by Account (Individual Values)",
+    "accumulated": "Accumulated Balance over Time by Account",
+}
+
+# Create the main Tkinter window
+window = tk.Tk()
+window.title("Finances Plot")
+window.geometry("800x600")
+
+# Create the Notebook widget for the tabs
+notebook = ttk.Notebook(window)
+notebook.pack(fill=tk.BOTH, expand=True)
+
+# Parse the command line arguments to get the filename and resolution
+filename = "ibbles.csv"
+resolution = "D"
 
 # Load the CSV file into a DataFrame
-df = pd.read_csv('your_file.csv', delimiter=';')
+df = pd.read_csv(filename, delimiter=";")
 
 # Remove any leading/trailing spaces from column names
 df.columns = df.columns.str.strip()
 
 # Convert the 'date' column to datetime format, handling invalid dates
-df['date'] = pd.to_datetime(df['date'], format='%Y-%m-%d', errors='coerce')
+df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d", errors="coerce")
 
-# Find the oldest valid date
-oldest_date = df['date'].min()
+# Find the oldest valid date. This will be used as the starting date for the entire data set
+oldest_date = df["date"].min()
 
 # Replace NaT values (invalid dates) with the oldest valid date
-df['date'] = df['date'].fillna(oldest_date)
+df["date"] = df["date"].fillna(oldest_date)
 
 # Remove rows with invalid dates and zero amounts
-df = df[(df['date'].notna()) & (df['amount'] != 0)]
+df = df[(df["date"].notna()) & (df["amount"] != 0)]
 
 # Group the rows by account
-grouped = df.groupby('account')
+grouped = df.groupby("account")
 
-# Dictionary to map resolution options to resample rule parameters
-resolution_mapping = {
-    'days': 'D',
-    'weeks': 'W',
-    'months': 'M',
-    'quarters': 'Q',
-    'years': 'A'
-}
+# Create a tab for each plot type
+for plot_type, plot_title in plot_types.items():
+    # Create a Frame for each tab
+    tab = ttk.Frame(notebook)
+    notebook.add(tab, text=plot_type.capitalize())
 
-# Get the resample rule parameter based on the selected resolution
-resample_rule = resolution_mapping[args.resolution]
+    # Create the plot in the Frame
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Amount")
+    ax.set_title(plot_title)
 
-# Plotting both figures
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    # Plot transactions in and out of each account, grouped by the time
+    # resolution
+    for account, data in grouped:
+        data_resampled = data.set_index("date").resample(resolution).sum()
+        ax.plot(
+            data_resampled.index,
+            data_resampled["amount"],
+            marker="o",
+            linestyle="-",
+            label=account,
+        )
 
-# Plot individual value curves for each account
-for account, data in grouped:
-    data_resampled = data.set_index('date').resample(resample_rule).sum()
-    ax1.plot(data_resampled.index, data_resampled['amount'], marker='o', linestyle='-', label=account)
+    ax.grid(True)
+    ax.tick_params(axis="x", rotation=45)
+    ax.legend()
 
-ax1.set_xlabel('Date')
-ax1.set_ylabel('Amount')
-ax1.set_title('Amount over Time by Account (Individual Values)')
-ax1.grid(True)
-ax1.tick_params(axis='x', rotation=45)
-ax1.legend()
+    # Embed the matplotlib plot into the tab
+    canvas = FigureCanvasTkAgg(fig, master=tab)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-# Plot accumulated balance curves for each account
-for account, data in grouped:
-    data_resampled = data.set_index('date').resample(resample_rule).sum()
-    accumulated_balance = data_resampled['amount'].cumsum()
-    ax2.plot(data_resampled.index, accumulated_balance, marker='o', linestyle='-', label=account)
+# Select the first tab by default
+notebook.select(0)
 
-ax2.set_xlabel('Date')
-ax2.set_ylabel('Accumulated Balance')
-ax2.set_title('Accumulated Balance over Time by Account')
-ax2.grid(True)
-ax2.tick_params(axis='x', rotation=45)
-ax2.legend()
 
-plt.tight_layout()
-plt.show()
+def close_window():
+    print("Closing window.")
+    window.quit()
+    window.destroy()
+
+
+window.protocol("WM_DELETE_WINDOW", close_window)
+print("Close window callback configured.")
+
+# Run the Tkinter event loop.
+window.mainloop()
