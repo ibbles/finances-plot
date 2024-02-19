@@ -65,7 +65,6 @@ def plot_accounts(ax, resolution, plot_title):
     ax.legend()
 
 
-
 # Create a tab for each plot type
 for plot_type, plot_title in plot_types.items():
     # Create a Frame for each tab
@@ -93,22 +92,43 @@ for plot_type, plot_title in plot_types.items():
     # Embed the matplotlib plot into the tab
     canvas = FigureCanvasTkAgg(fig, master=tab)
 
-    # Create settings panel
-    settings_panel = ttk.Frame(tab)
-    settings_panel.pack(side=tk.LEFT, fill=tk.Y)
+    # Create a Frame for settings
+    settings_frame = ttk.Frame(tab)
+    settings_frame.pack(side=tk.LEFT, fill=tk.Y)
 
-    # Create the checkbox in the settings panel
+    # Create the checkbox in the settings frame
     checkbox_var = tk.BooleanVar()
     checkbox = ttk.Checkbutton(
-        settings_panel,
+        settings_frame,
         text="Enable Plot Update",
         variable=checkbox_var,
-        command=make_update_plot(checkbox_var, canvas, ax, plot_title)
+        command=make_update_plot(checkbox_var, canvas, ax, plot_title),
     )
     checkbox.grid(row=0, column=0, sticky=tk.W)
 
+    def make_toggle_settings_visible(settings_frame, canvas):
+        def toggle_settings_visible():
+            if settings_frame.winfo_ismapped():
+                print("wininfo_ismapped: pack_forget")
+                settings_frame.pack_forget()
+            else:
+                print("not mapped, re-pack")
+                settings_frame.pack()
+            canvas.draw()
+        return toggle_settings_visible
+
+    # Create a button to collapse/expand the settings frame
+    collapse_button = ttk.Button(
+        tab,
+        text="▼",
+        command=make_toggle_settings_visible(settings_frame, canvas),
+    )
+    collapse_button.pack(side=tk.LEFT)
+
+    # Finalize UI setup.
     canvas.draw()
     canvas.get_tk_widget().pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+
 
 # Select the first tab by default
 notebook.select(0)
@@ -118,6 +138,7 @@ def close_window():
     """Callback function registered with the WM_DELETE_WINDOW event."""
     window.quit()
     window.destroy()
+
 
 window.protocol("WM_DELETE_WINDOW", close_window)
 
