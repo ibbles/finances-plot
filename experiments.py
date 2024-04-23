@@ -85,7 +85,6 @@ for plot_type, plot_title in plot_types.items():
     canvas = FigureCanvasTkAgg(fig, master=panes)
     canvas.draw()
 
-
     # Create a Frame for settings
     settings_frame = ttk.Frame(panes)
     panes.add(settings_frame)
@@ -96,9 +95,9 @@ for plot_type, plot_title in plot_types.items():
             print("Checkbox state:", state_var.get())
             ax.clear()
             if state_var.get():
-                plot_accounts(ax, "D", plot_title)
-            else:
                 plot_accounts(ax, "Y", plot_title)
+            else:
+                plot_accounts(ax, "D", plot_title)
             canvas.draw()
 
         return update_plot
