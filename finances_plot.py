@@ -6,15 +6,17 @@ Data is read from a CSV file where each line follows this pattern:
   date;amount;account;category;payee;memo
 
 Example line:
-  2024-01-22;-326.45;Martins kort;Vardagshandling;Coop Forum;Mat till nått event.
+  2024-01-22;-326.45;Martins kort;Vardagshandling;Coop Forum;Mat till nått.
 
-If you use KMyMoney then a compatible CSV file can be created with zcat and kmy_to_csv.py.
-For example, to convert the KMyMoney file MyFinances.kmy to MyFinances.csv:
+If you use KMyMoney then a compatible CSV file can be created with zcat and
+kmy_to_csv.py. For example, to convert the KMyMoney file MyFinances.kmy to
+MyFinances.csv:
+
   $ zcat MyFinances.kmy > MyFinances.xml
   $ python3 kmy_to_csv.py MyFinances.xml
 
 
-usage: finances_plot.py [-h] filename {days,weeks,months,quarters,years}
+usage: finances_plot.py [-h] csv_filename {days,weeks,months,quarters,years}
 """
 
 # System imports.
@@ -36,7 +38,7 @@ def fail(message):
 
 
 def get_app_root():
-    """The the install directory for the application."""
+    """The install directory for the application."""
     file_path = os.path.realpath(__file__)
     dir_path = os.path.dirname(file_path)
     return dir_path
@@ -48,21 +50,33 @@ def path_in_app_root(path):
 
 
 def load_tabs():
-    """Search for plugins within the 'tabs' directory and create a tab for each."""
+    """
+    Search for plugins within the 'tabs' directory and create a tab for each.
+    """
+
+    # List of tab.Tab instances that has been loaded from a plugin module in the
+    # tabs directory.
     loaded_tabs = []
+
     tabs_path = path_in_app_root("tabs")
+
     # TODO: Will this walk recursively as-is, or do I need a recursive call for
     # each subdirectory?
     for dirpath, _, files in os.walk(tabs_path):
+        # We can only import Python modules, i.e. plugins, in directories listed
+        # in sys.path.
         if dirpath not in sys.path:
             sys.path.insert(0, dirpath)
         for file in files:
+            # Check if the file looks like a tab plugin. For now assume that any
+            # .py file is a tab plugin.
             (name, ext) = os.path.splitext(file)
             if not ext == os.extsep + "py":
                 continue
             try:
                 module = importlib.import_module(name)
                 if hasattr(module, "get_tab"):
+                    # The module is a tab plugin. Have it create its tab.
                     tab = module.get_tab()
                     loaded_tabs.append(tab)
                 else:
@@ -80,7 +94,9 @@ def load_tabs():
 def parse_arguments():
     # Parse command line arguments.
     parser = argparse.ArgumentParser(description="Plot data with time resolution")
-    parser.add_argument("filename", help="The file containing the exported account data.")
+    parser.add_argument(
+        "csv_filename", help="The CSV file containing the exported account data."
+    )
     parser.add_argument(
         "resolution",
         choices=["days", "weeks", "months", "quarters", "years"],
@@ -91,9 +107,9 @@ def parse_arguments():
 
 
 def main():
-    """Main function"""
-    args = parse_arguments()
+    """Main function."""
 
+    args = parse_arguments()
     loaded_tabs = load_tabs()
 
     # Find the data file, either relative to the current working directory, or
@@ -104,7 +120,7 @@ def main():
         # application install directory.
         filename = path_in_app_root(filename)
     if not os.path.isfile(filename):
-        fail(f"Could not open file '{args.filename}'. Also tried {filename}")
+        fail(f"Could not open file '{args.filename}'. Also tried '{filename}'.")
 
     # The CSV file we are working on has the following format:
     #
@@ -181,11 +197,9 @@ def main():
     for tab in loaded_tabs:
         tab.init(notebook, df, by_account, resample_rule)
 
-
     def close_window():
         window.quit()
         window.destroy()
-
 
     window.protocol("WM_DELETE_WINDOW", close_window)
 
