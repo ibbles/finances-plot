@@ -13,7 +13,7 @@ plot_types = {
 
 # Create the main Tkinter window
 window = tk.Tk()
-window.title("Finances Plot")
+window.title("Finances Plot - Panes Experiment")
 window.geometry("800x600")
 
 # Create the Notebook widget for the tabs
@@ -47,7 +47,9 @@ grouped = df.groupby("account")
 
 
 def plot_accounts(ax, resolution, plot_title):
-    # Plot transactions in and out of each account, grouped by the time resolution
+    """
+    Plot transactions in and out of each account, grouped by the time resolution
+    """
     for account, data in grouped:
         data_resampled = data.set_index("date").resample(resolution).sum()
         ax.plot(
@@ -71,10 +73,22 @@ for plot_type, plot_title in plot_types.items():
     tab = ttk.Frame(notebook)
     notebook.add(tab, text=plot_type.capitalize())
 
-    # Create the plot in the Frame
+    # Create the plot. Must be done early since widget callbacks need to
+    # reference these.
     fig, ax = plt.subplots(figsize=(8, 4))
-
     plot_accounts(ax, default_resolution, plot_title)
+
+    # Create a PanedWindow to hold the plot canvas and the settings frame
+    panes = ttk.PanedWindow(tab, orient=tk.HORIZONTAL)
+    panes.pack(expand=True, fill=tk.BOTH)
+
+    canvas = FigureCanvasTkAgg(fig, master=panes)
+    canvas.draw()
+
+
+    # Create a Frame for settings
+    settings_frame = ttk.Frame(panes)
+    panes.add(settings_frame)
 
     # Create a callback function for the checkbox
     def make_update_plot(state_var, canvas, ax, plot_title):
@@ -89,13 +103,6 @@ for plot_type, plot_title in plot_types.items():
 
         return update_plot
 
-    # Embed the matplotlib plot into the tab
-    canvas = FigureCanvasTkAgg(fig, master=tab)
-
-    # Create a Frame for settings
-    settings_frame = ttk.Frame(tab)
-    settings_frame.pack(side=tk.LEFT, fill=tk.Y)
-
     # Create the checkbox in the settings frame
     checkbox_var = tk.BooleanVar()
     checkbox = ttk.Checkbutton(
@@ -106,28 +113,8 @@ for plot_type, plot_title in plot_types.items():
     )
     checkbox.grid(row=0, column=0, sticky=tk.W)
 
-    def make_toggle_settings_visible(settings_frame, canvas):
-        def toggle_settings_visible():
-            if settings_frame.winfo_ismapped():
-                print("wininfo_ismapped: pack_forget")
-                settings_frame.pack_forget()
-            else:
-                print("not mapped, re-pack")
-                settings_frame.pack()
-            canvas.draw()
-        return toggle_settings_visible
-
-    # Create a button to collapse/expand the settings frame
-    collapse_button = ttk.Button(
-        tab,
-        text="▼",
-        command=make_toggle_settings_visible(settings_frame, canvas),
-    )
-    collapse_button.pack(side=tk.LEFT)
-
-    # Finalize UI setup.
-    canvas.draw()
-    canvas.get_tk_widget().pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+    # Add the canvas and settings frame to the PanedWindow
+    panes.add(canvas.get_tk_widget())
 
 
 # Select the first tab by default
