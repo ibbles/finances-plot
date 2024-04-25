@@ -114,7 +114,7 @@ def main():
 
     # Find the data file, either relative to the current working directory, or
     # relative to the application install directory.
-    filename = args.filename
+    filename = args.csv_filename
     if not os.path.isfile(filename):
         # Did not find relative to current directory, try relative to the
         # application install directory.
