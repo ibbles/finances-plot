@@ -1,11 +1,17 @@
 
 This application is used to plot various stuff about money.
-It imports CSV files exported from [Skrooge](https://flathub.org/apps/org.kde.skrooge).
+It imports CSV files exported from [Skrooge](https://flathub.org/apps/org.kde.skrooge) or converted from KMyMoney.
 
 Export a CSV file from Scrooge using Top Menu Bar > File > Export.
 To export a subset of the accounts open the Accounts tab and select the accounts to include before selecting Export.
 
-This script require Pandas and Matplotlib.
+Use `zcat` together with the included `kmy_to_csv.py` script to translate a KMyMoney file:
+```shell
+zcat MyFinances.kmy > MyFinances.xml
+python3 kmy_to_csv.py MyFinances.xml
+```
+
+This script require tkinter, Pandas and Matplotlib.
 Virtual environment setup on Ubuntu 22.04:
 ```shell
 ➤ sudo apt install python3-venv
