@@ -92,6 +92,13 @@ def use_mplcursors():
 def init_tab(notebook, transactions, by_category):
     """Create the tab and its constituent widgets."""
 
+    start_date = pd.to_datetime("2023-01-01")
+    end_date = pd.to_datetime("2023-12-31")
+    transactions = transactions[
+        (transactions["date"] >= start_date) & (transactions["date"] <= end_date)
+    ]
+    by_category = transactions.groupby("category")
+
     frame = ttk.Frame(notebook)
     notebook.add(frame, text="Expenses Bar Chart")
 
@@ -104,6 +111,8 @@ def init_tab(notebook, transactions, by_category):
 
     oldest_date = transactions["date"].min()
     newest_date = transactions["date"].max()
+    full_date_range = pd.date_range(start=oldest_date, end=newest_date, freq="M")
+
     print("By category:")
     print(by_category)
     print("Oldest date:")
@@ -116,7 +125,6 @@ def init_tab(notebook, transactions, by_category):
             transactions[["date", "amount"]].set_index("date").resample("M").sum()
         )
 
-        full_date_range = pd.date_range(start=oldest_date, end=newest_date, freq="M")
         transactions_date_expanded = transactions_resampled.reindex(
             full_date_range, fill_value=0.0
         )
@@ -129,7 +137,61 @@ def init_tab(notebook, transactions, by_category):
         print(category_data[i])
 
     # Plot the expenses as a bar chart, grouped by month.
-    balance_fig, balance_ax = plt.subplots(figsize=(8, 4))
+    figure, axes = plt.subplots(figsize=(8, 4))
+
+    bottom = [0] * len(full_date_range)
+
+    # experiment_dates = ["2024-01-31", "2024-02-28", "2024-03-31"]
+    # experiment_data = [10, 20, 15]
+    # experiment_label = "Experiment data"
+    # axes.bar(experiment_dates, experiment_data, label=experiment_label)
+
+    for label, data in zip(category_labels, category_data):
+        axes.bar(
+            full_date_range,
+            data["amount"],
+            label=label,
+            width=10.0,
+            bottom=bottom,
+        )
+
+        bottom = [
+            bottom[i] + data["amount"].iloc[i] for i in range(len(full_date_range))
+        ]
+
+    axes.set_xlabel("Date")
+    axes.set_ylabel("Amount")
+    axes.set_title("Cost Per Month")
+    axes.grid(True)
+    axes.tick_params(axis="x", rotation=45)
+    axes.legend(loc=(1.04, 0))
+
+    canvas = FigureCanvasTkAgg(figure, master=frame)
+    canvas.draw()
+    canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
+
+    cursor = mplcursors.cursor(hover=mplcursors.HoverMode.Transient)
+
+    @cursor.connect("add")
+    def on_add(sel):
+        x, y, width, height = sel.artist[sel.index].get_bbox().bounds
+        sel.annotation.xy = (x + width / 2, y + height)
+
+        # Determine the expense type.
+        sum = 0
+        expense_label = ""
+        for i, expense in enumerate(category_data):
+            sum += expense["amount"].iloc[sel.index]
+            if sum > y:
+                expense_label = category_labels[i]
+                break
+        sel.annotation.set(
+            text=expense_label,
+            position=(0, 20),
+            anncoords="offset points",
+        )
+
+        print(f"Hover over {x=}, {y=}, {width=}, {height=}, {expense_label=}")
 
 
 class ExpensesBarChartTab(tab.Tab):
