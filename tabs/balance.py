@@ -1,4 +1,4 @@
-""" A tab showing the balance in each account over time."""
+"""A tab showing the balance in each account over time."""
 
 import tkinter as tk
 from tkinter import ttk
@@ -65,7 +65,7 @@ def init_tab(notebook, grouped, resample_rule):
 class BalanceTab(tab.Tab):
     """Class implementing the Tab interface, populating itself with a balance tab."""
 
-    def init(self, notebook, transactions, by_account, resample_rule):
+    def init(self, notebook, transactions, by_account, by_category, resample_rule):
         print("BalanceTab.init")
         init_tab(notebook, by_account, resample_rule)
 

@@ -169,8 +169,9 @@ def main():
     # NOTE: What would cause a transaction to have a zero amount?
     df = df[(df["date"].notna()) & (df["amount"] != 0)]
 
-    # Group the rows by account.
+    # Group the rows by commonly used properties.
     by_account = df.groupby("account")
+    by_category = df.groupby("category")
 
     # Dictionary to map resolution options to resample rule parameters.
     resolution_mapping = {
@@ -195,7 +196,7 @@ def main():
 
     # for tab in tabs.values():
     for tab in loaded_tabs:
-        tab.init(notebook, df, by_account, resample_rule)
+        tab.init(notebook, df, by_account, by_category, resample_rule)
 
     def close_window():
         window.quit()
