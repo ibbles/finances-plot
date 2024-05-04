@@ -113,8 +113,10 @@ def init_tab(notebook, transactions, by_category):
     print("Transactions with negative amount:")
     print(transactions)
 
-    # Remove ignored / disabled categories.
-    transactions = transactions[(transactions["category"] != "Negativ avkastning")]
+    # Remove disabled categories.
+    disabled_categories = ["Negativ avkastning"]
+    for category in disabled_categories:
+        transactions = transactions[(transactions["category"] != category)]
 
     by_category = transactions.groupby("category")
 
