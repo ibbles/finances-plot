@@ -97,8 +97,8 @@ def init_tab(notebook, transactions, by_category):
     print(transactions)
 
     # This is debug code. Don't commit.
-    start_date = pd.to_datetime("2023-01-01")
-    end_date = pd.to_datetime("2023-12-31")
+    start_date = pd.to_datetime("2024-01-01")
+    end_date = pd.to_datetime("2024-12-31")
     transactions = transactions[
         (transactions["date"] >= start_date) & (transactions["date"] <= end_date)
     ]
