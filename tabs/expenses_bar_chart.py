@@ -106,11 +106,15 @@ def init_tab(notebook, transactions, by_category):
     print("Transactions in the date range:")
     print(transactions)
 
+    # Only keep expenses, i.e. negative amounts.
     transactions = transactions[(transactions["amount"] < 0)]
     transactions["amount"] = transactions["amount"].abs()
 
-    print("Transactions with negateive amount:")
+    print("Transactions with negative amount:")
     print(transactions)
+
+    # Remove ignored / disabled categories.
+    transactions = transactions[(transactions["category"] != "Negativ avkastning")]
 
     by_category = transactions.groupby("category")
 
