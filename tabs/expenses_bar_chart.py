@@ -134,44 +134,64 @@ def init_tab(notebook, transactions, by_category):
     # row per expense category.
     category_labels = []  # The name of each category.
     category_data = []  # One sub-list per category, each with one value per bar.
+    category_memo = []  # One sub-list per category, each with one memo per bar.
 
     oldest_date = transactions["date"].min()
     oldest_date = oldest_date.replace(day=1)
     newest_date = transactions["date"].max()
     newest_date = newest_date.replace(day=1)
     newest_date = newest_date + pd.offsets.MonthBegin(1)
-    full_date_range = pd.date_range(start=oldest_date, end=newest_date, freq="M")
+    full_date_range = pd.date_range(start=oldest_date, end=newest_date, freq="MS")
 
     print("Oldest date:")
     print(oldest_date)
     print("Newest date:")
     print(newest_date)
+    print("full_date_range:")
+    print(full_date_range)
 
     for category, transactions in by_category:
         print("Resample and date expanding")
         print(transactions)
 
         transactions_resampled = (
-            transactions[["date", "amount"]].set_index("date").resample("M").sum()
+            transactions[["date", "amount"]].set_index("date").resample("MS").sum()
+        )
+        # transactions_memo_resampled = (
+        #     transactions[["date", "memo"]].set_index("date").resample("MS").sum()
+        # )
+        transactions_memo_resampled = (
+            transactions.groupby(pd.Grouper(key="date", freq="MS")).agg(
+                {"memo": lambda x: "\n".join(x.array)}
+            )  # "\n".join(x) if type(x) == str else ""
+            # .reset_index()
         )
 
         print("Resampled:")
         print(transactions_resampled)
+        print(transactions_memo_resampled)
 
         transactions_date_expanded = transactions_resampled.reindex(
             full_date_range, fill_value=0.0
         )
 
+        transactions_memo_date_expanded = transactions_memo_resampled.reindex(
+            full_date_range, fill_value=""
+        )
+
         print(f"Date expanded to {full_date_range}:")
         print(transactions_date_expanded)
+        print(transactions_memo_date_expanded)
 
         category_labels.append(category)
         category_data.append(transactions_date_expanded)
+        category_memo.append(transactions_memo_date_expanded)
 
     print("Categories:")
     for i, label in enumerate(category_labels):
         print(f"  - Category '{label}':")
         print(category_data[i])
+        print(category_memo[i])
     print("End of categories.")
 
     # Plot the expenses as a bar chart, grouped by month.
@@ -195,7 +215,7 @@ def init_tab(notebook, transactions, by_category):
             data["amount"],
             label=label,
             width=width,
-            # align="edge",
+            align="edge",
             bottom=bottom,
         )
 
@@ -229,7 +249,8 @@ def init_tab(notebook, transactions, by_category):
         for i, expense in enumerate(category_data):
             sum += expense["amount"].iloc[sel.index]
             if sum > y:
-                expense_label = category_labels[i]
+                memo = category_memo[i]["memo"].iloc[sel.index]
+                expense_label = f"{category_labels[i]}: {height:.2f}\n{memo}"
                 break
         sel.annotation.set(
             text=expense_label,
