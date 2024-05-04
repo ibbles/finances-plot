@@ -162,7 +162,7 @@ def init_tab(notebook, transactions, by_category):
         # )
         transactions_memo_resampled = (
             transactions.groupby(pd.Grouper(key="date", freq="MS")).agg(
-                {"memo": lambda x: "\n".join(x.array)}
+                {"memo": lambda x: "\n".join(x.array).strip()}
             )  # "\n".join(x) if type(x) == str else ""
             # .reset_index()
         )
