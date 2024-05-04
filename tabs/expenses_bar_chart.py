@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 
 import matplotlib.pyplot as plt
+from matplotlib.dates import MonthLocator, DateFormatter
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 import pandas as pd
@@ -170,6 +171,11 @@ def init_tab(notebook, transactions, by_category):
     # Plot the expenses as a bar chart, grouped by month.
     figure, axes = plt.subplots(figsize=(8, 4))
 
+    width = [
+        (full_date_range[i + 1] - full_date_range[i]).days
+        for i in range(len(full_date_range) - 1)
+    ]
+    width.append(width[-1])  # Add the width for the last month
     bottom = [0] * len(full_date_range)
 
     # experiment_dates = ["2024-01-31", "2024-02-28", "2024-03-31"]
@@ -182,7 +188,8 @@ def init_tab(notebook, transactions, by_category):
             full_date_range,
             data["amount"],
             label=label,
-            width=10.0,
+            width=width,
+            # align="edge",
             bottom=bottom,
         )
 
@@ -193,8 +200,10 @@ def init_tab(notebook, transactions, by_category):
     axes.set_xlabel("Date")
     axes.set_ylabel("Amount")
     axes.set_title("Cost Per Month")
-    axes.grid(True)
+    axes.xaxis.set_major_formatter(DateFormatter("%Y-%m"))
+    axes.xaxis.set_major_locator(MonthLocator())
     axes.tick_params(axis="x", rotation=45)
+    axes.grid(True)
     axes.legend(loc=(1.04, 0))
 
     canvas = FigureCanvasTkAgg(figure, master=frame)
@@ -223,6 +232,8 @@ def init_tab(notebook, transactions, by_category):
         )
 
         print(f"Hover over {x=}, {y=}, {width=}, {height=}, {expense_label=}")
+
+    # TODO Add a settings panel with a checkbox for each expense category.
 
 
 class ExpensesBarChartTab(tab.Tab):
