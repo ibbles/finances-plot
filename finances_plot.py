@@ -165,6 +165,8 @@ def main():
     # This is typically the all-zero opening balance transactions.
     df["date"] = df["date"].fillna(oldest_date)
 
+    df["memo"] = df["memo"].fillna("")
+
     # Remove rows with invalid dates and zero amounts.
     # NOTE: What would cause a transaction to have a zero amount?
     df = df[(df["date"].notna()) & (df["amount"] != 0)]
