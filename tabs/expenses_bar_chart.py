@@ -92,11 +92,25 @@ def use_mplcursors():
 def init_tab(notebook, transactions, by_category):
     """Create the tab and its constituent widgets."""
 
+    print("All transactions:")
+    print(transactions)
+
+    # This is debug code. Don't commit.
     start_date = pd.to_datetime("2023-01-01")
     end_date = pd.to_datetime("2023-12-31")
     transactions = transactions[
         (transactions["date"] >= start_date) & (transactions["date"] <= end_date)
     ]
+
+    print("Transactions in the date range:")
+    print(transactions)
+
+    transactions = transactions[(transactions["amount"] < 0)]
+    transactions["amount"] = transactions["amount"].abs()
+
+    print("Transactions with negateive amount:")
+    print(transactions)
+
     by_category = transactions.groupby("category")
 
     frame = ttk.Frame(notebook)
@@ -115,31 +129,43 @@ def init_tab(notebook, transactions, by_category):
     category_data = []  # One sub-list per category, each with one value per bar.
 
     oldest_date = transactions["date"].min()
+    oldest_date = oldest_date.replace(day=1)
     newest_date = transactions["date"].max()
+    newest_date = newest_date.replace(day=1)
+    newest_date = newest_date + pd.offsets.MonthBegin(1)
     full_date_range = pd.date_range(start=oldest_date, end=newest_date, freq="M")
 
-    print("By category:")
-    print(by_category)
     print("Oldest date:")
     print(oldest_date)
     print("Newest date:")
     print(newest_date)
 
     for category, transactions in by_category:
+        print("Resample and date expanding")
+        print(transactions)
+
         transactions_resampled = (
             transactions[["date", "amount"]].set_index("date").resample("M").sum()
         )
 
+        print("Resampled:")
+        print(transactions_resampled)
+
         transactions_date_expanded = transactions_resampled.reindex(
             full_date_range, fill_value=0.0
         )
+
+        print(f"Date expanded to {full_date_range}:")
+        print(transactions_date_expanded)
+
         category_labels.append(category)
         category_data.append(transactions_date_expanded)
 
+    print("Categories:")
     for i, label in enumerate(category_labels):
-        print(f"Category '{label}':")
-        print(type(category_data[i]))
+        print(f"  - Category '{label}':")
         print(category_data[i])
+    print("End of categories.")
 
     # Plot the expenses as a bar chart, grouped by month.
     figure, axes = plt.subplots(figsize=(8, 4))
@@ -203,6 +229,7 @@ class ExpensesBarChartTab(tab.Tab):
     """Class implementing the Tab interface, populating itself with a bar chart."""
 
     def init(self, notebook, transactions, by_account, by_category, resample_rule):
+        print("ExpensesBarChartTab.init")
         init_tab(notebook, transactions, by_category)
 
 
