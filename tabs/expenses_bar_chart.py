@@ -102,6 +102,11 @@ def init_tab(notebook, transactions, by_category):
     frame = ttk.Frame(notebook)
     notebook.add(frame, text="Expenses Bar Chart")
 
+    if len(transactions) == 0:
+        no_data_label = ttk.Label(frame, text="No data")
+        no_data_label.pack()
+        return
+
     # Build data matrix.
     #
     # The goal is a 2D array with one column per time period, e.g. month, and one
