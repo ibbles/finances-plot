@@ -145,7 +145,7 @@ def main():
     #
     # The "account" column is the name of the account that the current
     # transaction modifies. Transactions that involve multiple accounts, i.e.
-    # transfers, consists of two or more rows, for for each account in the
+    # transfers, consists of two or more rows, one for each account in the
     # transaction.
 
     # Load the CSV file into a DataFrame.
