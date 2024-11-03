@@ -27,11 +27,20 @@ Virtual environment setup on Ubuntu 22.04:
 ➤ sudo apt install python3-tk
 
 # Run the script.
-➤ python3 $GIT_REPO/finances_plot.py CSV_FILENAME days
+➤ python3 $GIT_REPO/finances_plot.py CSV_FILENAME months
 ```
 
 To later use the application:
 ```shell
 ➤ source venv/bin/activate.fish
-➤ python3 $GIT_REPO/finances_plot.py CSV_FILENAME days
+➤ python3 $GIT_REPO/finances_plot.py CSV_FILENAME months
 ```
+
+
+Some tabs require additional libraries:
+- `pip3 install mplcursors`
+  - Used to create cursor hover pop-ups on plots.
+  - Doesn't work with `PolyCollection`, which is used by `stackplot`.
+- `pip3 install bokeh`
+  - An entire plotting tool, alternative to matplotlib.
+  - Opens in a web browser.
