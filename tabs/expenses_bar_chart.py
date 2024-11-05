@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+from tkcalendar import DateEntry
 
 import matplotlib.pyplot as plt
 from matplotlib.dates import MonthLocator, DateFormatter
@@ -52,157 +53,183 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
     frame = ttk.Frame(notebook)
     notebook.add(frame, text="Expenses Bar Chart")
 
-    # Only include transactions in the wanted date range, inclusive on both ends.
-    start_date = pd.to_datetime("2023-01-01")
-    end_date = pd.to_datetime("2023-12-31")
-    transactions = filter_to_date_range(transactions, start_date, end_date)
+    # Settings panel for date range selection
+    settings_frame = ttk.Frame(frame)
+    settings_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
 
-    # Only keep expenses, i.e. transactions that have negative amounts.
-    transactions = filter_to_expenses(transactions)
+    ttk.Label(settings_frame, text="Start Date:").grid(row=0, column=0, padx=5, pady=5)
+    start_date_entry = DateEntry(
+        settings_frame,
+        width=12,
+        year=2023,
+        month=1,
+        day=1,
+        background="darkblue",
+        foreground="white",
+        borderwidth=2,
+    )
+    start_date_entry.grid(row=0, column=1, padx=5, pady=5)
 
-    # Remove unwanted categories.
-    # "Negative avkastning" is unwanted because it is not an expense.
-    unwanted_categories = ["Negativ avkastning"]
-    transactions = filter_away_unwanted_categories(transactions, unwanted_categories)
+    ttk.Label(settings_frame, text="End Date:").grid(row=0, column=2, padx=5, pady=5)
+    end_date_entry = DateEntry(
+        settings_frame,
+        width=12,
+        year=2023,
+        month=12,
+        day=31,
+        background="darkblue",
+        foreground="white",
+        borderwidth=2,
+    )
+    end_date_entry.grid(row=0, column=3, padx=5, pady=5)
 
-    by_category = transactions.groupby("category")
+    # Make a copy of the original transactions DataFrame
+    original_transactions = transactions.copy()
 
-    # Bail if there is no data to plot.
-    if len(transactions) == 0:
-        no_data_label = ttk.Label(frame, text="No data")
-        no_data_label.pack()
-        return
+    def apply_date_filter():
+        start_date = pd.to_datetime(start_date_entry.get())
+        end_date = pd.to_datetime(end_date_entry.get())
+        update_plot(start_date, end_date)
 
-    # Build plot data matrix.
-    #
-    # The goal is a 2D array with one column per time period, e.g. month, and
-    # one row per expense category. Each column corresponds to a bar in the bar
-    # chart.
-    category_labels = []  # The name of each category.
-    category_data = []  # One sub-list per category, each with one value per bar.
-    category_memo = []  # One sub-list per category, each with one memo per bar.
+    apply_button = ttk.Button(settings_frame, text="Apply", command=apply_date_filter)
+    apply_button.grid(row=0, column=4, padx=5, pady=5)
 
-    # Find the actual date range of the final data set. Round the oldest_date
-    # down to the start of the month and newest_date up to the next month to
-    # make sure we only have complete months.
-    oldest_date = transactions["date"].min()
-    oldest_date = oldest_date.replace(day=1)
-    newest_date = transactions["date"].max()
-    newest_date = newest_date.replace(day=1)
-    newest_date = newest_date + pd.offsets.MonthBegin(1)
-    full_date_range = pd.date_range(start=oldest_date, end=newest_date, freq="MS")
+    # Placeholder for canvas and no_data_label
+    plot_frame = ttk.Frame(frame)
+    plot_frame.pack(expand=True, fill=tk.BOTH)
+    plot_canvas = None
+    no_data_label = None
 
-    # Populate the plot data for each category.
-    for category, transactions in by_category:
-        # Resample transactions by month. Fill with 0.0 for months where there
-        # is no data.
-        transactions_resampled = (
-            transactions[["date", "amount"]].set_index("date").resample("MS").sum()
+    # Function to update the plot with the selected date range
+    def update_plot(start_date, end_date):
+        nonlocal plot_canvas, no_data_label  # Capture the plot_canvas and no_data_label variables from the outer scope
+
+        # Clear previous plot or message
+        if plot_canvas is not None:
+            plot_canvas.get_tk_widget().destroy()
+            plot_canvas = None
+
+        if no_data_label is not None:
+            no_data_label.destroy()
+            no_data_label = None
+
+        # Use the original transactions DataFrame to filter
+        filtered_transactions = filter_to_date_range(
+            original_transactions, start_date, end_date
         )
-        transactions_date_expanded = transactions_resampled.reindex(
-            full_date_range, fill_value=0.0
-        )
-
-        # Create a combined label for all memos during each month. Use the empty
-        # string for months where there is no data.
-        transactions_memo_resampled = transactions.groupby(
-            pd.Grouper(key="date", freq="MS")
-        ).agg({"memo": lambda x: "\n".join(x.array).strip()})
-        transactions_memo_date_expanded = transactions_memo_resampled.reindex(
-            full_date_range, fill_value=""
-        )
-
-        # Populate the plot data matrix.
-        category_labels.append(category)
-        category_data.append(transactions_date_expanded)
-        category_memo.append(transactions_memo_date_expanded)
-
-    # Create a figure to draw the bar chart in.
-    figure, axes = plt.subplots(figsize=(8, 4))
-
-    # Not sure what this does. Will all widths be the same, or is there some
-    # variation? Does it scale the width of each bar by the number of days in
-    # each month? That doesn't seem necessary.
-    width = [
-        (full_date_range[i + 1] - full_date_range[i]).days
-        for i in range(len(full_date_range) - 1)
-    ]
-    width.append(width[-1])  # Add the width for the last month.
-    # The last row above is weird. It adds the last width again. Why?
-
-    print(f"width: {width}")
-
-    # The bar chart is built one category at a time, each new category being
-    # stacked on top of the prior one. This array keeps track of how high each
-    # bar, i.e. each month, has stacked so far. When we add the next category
-    # at the top of the bar then that category's block should start at this
-    # height.
-    bottom = [0] * len(full_date_range)
-
-    # Build the bar chart one category at a time.
-    for label, data in zip(category_labels, category_data):
-        # Draw the bar boxes for this category across all months, placing them
-        # on top of the the previous boxes, i.e. 'bottom'.
-        axes.bar(
-            full_date_range,
-            data["amount"],
-            label=label,
-            width=width,
-            align="edge",
-            bottom=bottom,
+        filtered_transactions = filter_to_expenses(filtered_transactions)
+        filtered_transactions = filter_away_unwanted_categories(
+            filtered_transactions, ["Negativ avkastning"]
         )
 
-        # Move the bottom up by each months' amount for this category.
-        bottom = [
-            bottom[i] + data["amount"].iloc[i] for i in range(len(full_date_range))
+        by_category = filtered_transactions.groupby("category")
+
+        # Bail if there is no data to plot.
+        if len(filtered_transactions) == 0:
+            no_data_label = ttk.Label(plot_frame, text="No data")
+            no_data_label.pack()
+            return
+
+        # Build plot data matrix.
+        category_labels = []  # The name of each category.
+        category_data = []  # One sub-list per category, each with one value per bar.
+        category_memo = []  # One sub-list per category, each with one memo per bar.
+
+        # Find the actual date range of the final data set. Round the oldest_date
+        # down to the start of the month and newest_date up to the next month to
+        # make sure we only have complete months.
+        oldest_date = filtered_transactions["date"].min()
+        oldest_date = oldest_date.replace(day=1)
+        newest_date = filtered_transactions["date"].max()
+        newest_date = newest_date.replace(day=1)
+        newest_date = newest_date + pd.offsets.MonthBegin(1)
+        full_date_range = pd.date_range(start=oldest_date, end=newest_date, freq="MS")
+
+        # Populate the plot data for each category.
+        for category, transactions in by_category:
+            transactions_resampled = (
+                transactions[["date", "amount"]].set_index("date").resample("MS").sum()
+            )
+            transactions_date_expanded = transactions_resampled.reindex(
+                full_date_range, fill_value=0.0
+            )
+
+            transactions_memo_resampled = transactions.groupby(
+                pd.Grouper(key="date", freq="MS")
+            ).agg({"memo": lambda x: "\n".join(x.array).strip()})
+            transactions_memo_date_expanded = transactions_memo_resampled.reindex(
+                full_date_range, fill_value=""
+            )
+
+            category_labels.append(category)
+            category_data.append(transactions_date_expanded)
+            category_memo.append(transactions_memo_date_expanded)
+
+        # Create a figure to draw the bar chart in.
+        figure, axes = plt.subplots(figsize=(8, 4))
+
+        width = [
+            (full_date_range[i + 1] - full_date_range[i]).days
+            for i in range(len(full_date_range) - 1)
         ]
+        width.append(width[-1])  # Add the width for the last month.
 
-    # Configure the plot.
-    axes.set_xlabel("Date")
-    axes.set_ylabel("Amount")
-    axes.set_title("Cost Per Month")
-    axes.xaxis.set_major_formatter(DateFormatter("%Y-%m"))
-    axes.xaxis.set_major_locator(MonthLocator())
-    axes.tick_params(axis="x", rotation=45)
-    axes.grid(True)
-    axes.legend(loc=(1.04, 0))
+        bottom = [0] * len(full_date_range)
 
-    # Present the finished plot to the user.
-    canvas = FigureCanvasTkAgg(figure, master=frame)
-    canvas.draw()
-    canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
+        # Build the bar chart one category at a time.
+        for label, data in zip(category_labels, category_data):
+            axes.bar(
+                full_date_range,
+                data["amount"],
+                label=label,
+                width=width,
+                align="edge",
+                bottom=bottom,
+            )
+            bottom = [
+                bottom[i] + data["amount"].iloc[i] for i in range(len(full_date_range))
+            ]
 
-    # Set up the category hover tool-tips.
-    cursor = mplcursors.cursor(hover=mplcursors.HoverMode.Transient)
+        # Configure the plot.
+        axes.set_xlabel("Date")
+        axes.set_ylabel("Amount")
+        axes.set_title("Cost Per Month")
+        axes.xaxis.set_major_formatter(DateFormatter("%Y-%m"))
+        axes.xaxis.set_major_locator(MonthLocator())
+        axes.tick_params(axis="x", rotation=45)
+        axes.grid(True)
+        axes.legend(loc=(1.04, 0))
 
-    @cursor.connect("add")
-    def on_add(sel):
-        """Callback called by mplcursors when the mouse cursos is moved over the bar char."""
+        # Present the finished plot to the user.
+        plot_canvas = FigureCanvasTkAgg(figure, master=plot_frame)
+        plot_canvas.draw()
+        plot_canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
 
-        # Find which part of the bar chart the cursor is currently on top of.
-        x, y, width, height = sel.artist[sel.index].get_bbox().bounds
-        sel.annotation.xy = (x + width / 2, y + height)
+        # Set up the category hover tool-tips.
+        cursor = mplcursors.cursor(hover=mplcursors.HoverMode.Transient)
 
-        # Determine the expense type by walking up the categories in the current
-        # column until we have seen enough amounts to enter into the current
-        # bar chart box, i.e. until the sum of expenses is larger than the y
-        # coordinate of the box.
-        sum = 0
-        expense_label = ""
-        for i, expense in enumerate(category_data):
-            sum += expense["amount"].iloc[sel.index]
-            if sum > y:
-                # Found the box.
-                memo = category_memo[i]["memo"].iloc[sel.index]
-                expense_label = f"{category_labels[i]}: {height:.2f}\n{memo}"
-                break
+        @cursor.connect("add")
+        def on_add(sel):
+            x, y, width, height = sel.artist[sel.index].get_bbox().bounds
+            sel.annotation.xy = (x + width / 2, y + height)
 
-        # Assign the tool-tip text.
-        sel.annotation.set(
-            text=expense_label,
-            position=(0, 20),
-            anncoords="offset points",
-        )
+            sum = 0
+            expense_label = ""
+            for i, expense in enumerate(category_data):
+                sum += expense["amount"].iloc[sel.index]
+                if sum > y:
+                    memo = category_memo[i]["memo"].iloc[sel.index]
+                    expense_label = f"{category_labels[i]}: {height:.2f}\n{memo}"
+                    break
+
+            sel.annotation.set(
+                text=expense_label,
+                position=(0, 20),
+                anncoords="offset points",
+            )
+
+    # Initialize plot with default date range
+    update_plot(pd.to_datetime("2023-01-01"), pd.to_datetime("2023-12-31"))
 
 
 class ExpensesBarChartTab(tab.Tab):
