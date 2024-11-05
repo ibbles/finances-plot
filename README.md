@@ -41,6 +41,8 @@ Some tabs require additional libraries:
 - `pip3 install mplcursors`
   - Used to create cursor hover pop-ups on plots.
   - Doesn't work with `PolyCollection`, which is used by `stackplot`.
+- `pip3 install tkcalendar`
+  - Used to pick range of dates to plot.
 - `pip3 install bokeh`
   - An entire plotting tool, alternative to matplotlib.
   - Opens in a web browser.
