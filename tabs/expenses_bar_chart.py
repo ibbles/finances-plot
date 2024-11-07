@@ -46,22 +46,19 @@ def filter_away_unwanted_categories(transactions: pd.DataFrame, unwanted_categor
     return transactions
 
 
-def init_tab(notebook, transactions: pd.DataFrame, by_category):
-    """Create the tab and its constituent widgets."""
-
-    # Create main GUI container widget.
-    frame = ttk.Frame(notebook)
-    notebook.add(frame, text="Expenses Bar Chart")
-
+def create_settings(frame: ttk.Frame, apply_callback):
     # Settings panel for date range selection
     settings_frame = ttk.Frame(frame)
     settings_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
+
+    today = datetime.date.today()
+    year = today.year
 
     ttk.Label(settings_frame, text="Start Date:").grid(row=0, column=0, padx=5, pady=5)
     start_date_entry = DateEntry(
         settings_frame,
         width=12,
-        year=2023,
+        year=year,
         month=1,
         day=1,
         background="darkblue",
@@ -74,7 +71,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
     end_date_entry = DateEntry(
         settings_frame,
         width=12,
-        year=2023,
+        year=year,
         month=12,
         day=31,
         background="darkblue",
@@ -83,18 +80,31 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
     )
     end_date_entry.grid(row=0, column=3, padx=5, pady=5)
 
-    # Make a copy of the original transactions DataFrame
-    original_transactions = transactions.copy()
+    apply_button = ttk.Button(settings_frame, text="Apply", command=apply_callback)
+    apply_button.grid(row=0, column=4, padx=5, pady=5)
+
+    return start_date_entry, end_date_entry
+
+
+def init_tab(notebook, transactions: pd.DataFrame, by_category):
+    """Create the tab and its constituent widgets."""
+
+    # Create main GUI container widget.
+    frame = ttk.Frame(notebook)
+    notebook.add(frame, text="Expenses Bar Chart")
 
     def apply_date_filter():
         start_date = pd.to_datetime(start_date_entry.get())
         end_date = pd.to_datetime(end_date_entry.get())
         update_plot(start_date, end_date)
 
-    apply_button = ttk.Button(settings_frame, text="Apply", command=apply_date_filter)
-    apply_button.grid(row=0, column=4, padx=5, pady=5)
+    start_date_entry, end_date_entry = create_settings(frame, apply_date_filter)
 
-    # Placeholder for canvas and no_data_label
+    # Keep a copy of the transactions list so that we can re-run the filtering
+    # with different settings later.
+    original_transactions = transactions.copy()
+
+    # Placeholder for canvas and no_data_label.
     plot_frame = ttk.Frame(frame)
     plot_frame.pack(expand=True, fill=tk.BOTH)
     plot_canvas = None
@@ -102,9 +112,9 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
 
     # Function to update the plot with the selected date range
     def update_plot(start_date, end_date):
-        nonlocal plot_canvas, no_data_label  # Capture the plot_canvas and no_data_label variables from the outer scope
+        nonlocal plot_canvas, no_data_label
 
-        # Clear previous plot or message
+        # Clear previous plot or message.
         if plot_canvas is not None:
             plot_canvas.get_tk_widget().destroy()
             plot_canvas = None
@@ -113,13 +123,20 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
             no_data_label.destroy()
             no_data_label = None
 
-        # Use the original transactions DataFrame to filter
+        # Only include transactions in the selected date range.
         filtered_transactions = filter_to_date_range(
             original_transactions, start_date, end_date
         )
+
+        # Only include expenses.
         filtered_transactions = filter_to_expenses(filtered_transactions)
+
+        # Remove transactions in categories that aren't "real" expenses.
+        unwanted_categories = [
+            "Negativ avkastning"  # Value changes in investments is not an expense.
+        ]
         filtered_transactions = filter_away_unwanted_categories(
-            filtered_transactions, ["Negativ avkastning"]
+            filtered_transactions, unwanted_categories
         )
 
         by_category = filtered_transactions.groupby("category")
@@ -210,9 +227,16 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
 
         @cursor.connect("add")
         def on_add(sel):
+            """Callback called by mplcursors when the mouse cursos is moved over the bar char."""
+
+            # Find which part of the bar chart the cursor is currently on top of.
             x, y, width, height = sel.artist[sel.index].get_bbox().bounds
             sel.annotation.xy = (x + width / 2, y + height)
 
+            # Determine the expense type by walking up the categories in the current
+            # column until we have seen enough amounts to enter into the current
+            # bar chart box, i.e. until the sum of expenses is larger than the y
+            # coordinate of the box.
             sum = 0
             expense_label = ""
             for i, expense in enumerate(category_data):
@@ -222,6 +246,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
                     expense_label = f"{category_labels[i]}: {height:.2f}\n{memo}"
                     break
 
+            # Assign the tool-tip text.
             sel.annotation.set(
                 text=expense_label,
                 position=(0, 20),
@@ -229,7 +254,9 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
             )
 
     # Initialize plot with default date range
-    update_plot(pd.to_datetime("2023-01-01"), pd.to_datetime("2023-12-31"))
+    start_date = pd.to_datetime(start_date_entry.get())
+    end_date = pd.to_datetime(end_date_entry.get())
+    update_plot(start_date, end_date)
 
 
 class ExpensesBarChartTab(tab.Tab):
