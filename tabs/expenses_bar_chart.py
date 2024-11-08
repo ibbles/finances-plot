@@ -23,7 +23,7 @@ def filter_to_date_range(
 ):
     """Get transactions within a data range.
 
-    Crate a new Data Frame that only contains the transactions that happened
+    Create a new Data Frame that only contains the transactions that happened
     within the requested time span. The time span is inclusive, meaning that
     both the first and last dates are included.
     """
@@ -39,7 +39,6 @@ def filter_to_expenses(transactions: pd.DataFrame):
     The amounts are made positive.
     """
     transactions = transactions[(transactions["amount"] < 0)]
-    # transactions["amount"] = transactions["amount"].abs()
     transactions.loc[:, "amount"] = transactions.loc[:, "amount"].abs()
     return transactions
 
@@ -144,6 +143,18 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
             filtered_transactions, unwanted_categories
         )
 
+        # Sort categories by the total amount spent in each category, descending.
+        sorted_categories = (
+            filtered_transactions.groupby("category")["amount"]
+            .sum()
+            .sort_values(ascending=False)
+            .index
+        )
+        filtered_transactions["category"] = pd.Categorical(
+            filtered_transactions["category"],
+            categories=sorted_categories,
+            ordered=True,
+        )
         by_category = filtered_transactions.groupby("category")
 
         # Bail if there is no data to plot.
@@ -198,7 +209,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
 
         bottom = [0] * len(full_date_range)
 
-        # Build the bar chart one category at a time.
+        # Build the bar chart one category at a time, starting from the largest.
         for label, data in zip(category_labels, category_data):
             axes.bar(
                 full_date_range,
@@ -232,7 +243,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
 
         @cursor.connect("add")
         def on_add(sel):
-            """Callback called by mplcursors when the mouse cursos is moved over the bar char."""
+            """Callback called by mplcursors when the mouse cursor is moved over the bar chart."""
 
             # Find which part of the bar chart the cursor is currently on top of.
             x, y, width, height = sel.artist[sel.index].get_bbox().bounds
