@@ -3,7 +3,7 @@ from tkinter import ttk
 from tkcalendar import DateEntry
 
 import matplotlib.pyplot as plt
-from matplotlib.dates import MonthLocator, DateFormatter
+from matplotlib.dates import MonthLocator, DateFormatter, WeekdayLocator, YearLocator
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 import pandas as pd
@@ -239,12 +239,23 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
                 bottom[i] + data["amount"].iloc[i] for i in range(len(full_date_range))
             ]
 
-        # Configure the plot.
+        # Configure the plot based on resampling rule.
         axes.set_xlabel("Date")
         axes.set_ylabel("Amount")
-        axes.set_title("Cost Per Month")
-        axes.xaxis.set_major_formatter(DateFormatter("%Y-%m"))
-        axes.xaxis.set_major_locator(MonthLocator())
+
+        if resample_rule == "W":
+            axes.set_title("Cost Per Week")
+            axes.xaxis.set_major_formatter(DateFormatter("%Y-%W"))
+            axes.xaxis.set_major_locator(WeekdayLocator())
+        elif resample_rule == "M":
+            axes.set_title("Cost Per Month")
+            axes.xaxis.set_major_formatter(DateFormatter("%Y-%m"))
+            axes.xaxis.set_major_locator(MonthLocator())
+        elif resample_rule == "YS":
+            axes.set_title("Cost Per Year")
+            axes.xaxis.set_major_formatter(DateFormatter("%Y"))
+            axes.xaxis.set_major_locator(YearLocator())
+
         axes.tick_params(axis="x", rotation=45)
         axes.grid(True)
         axes.legend(loc=(1.04, 0))
