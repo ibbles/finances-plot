@@ -13,6 +13,10 @@ import datetime
 
 import tab
 
+# See https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+# SettingWithCopyWarning: A value is trying to be set on a copy of a slice from a DataFrame.
+pd.options.mode.copy_on_write = True
+
 
 def filter_to_date_range(
     transactions: pd.DataFrame, first_date: pd.Timestamp, last_date: pd.Timestamp
@@ -35,7 +39,8 @@ def filter_to_expenses(transactions: pd.DataFrame):
     The amounts are made positive.
     """
     transactions = transactions[(transactions["amount"] < 0)]
-    transactions["amount"] = transactions["amount"].abs()
+    # transactions["amount"] = transactions["amount"].abs()
+    transactions.loc[:, "amount"] = transactions.loc[:, "amount"].abs()
     return transactions
 
 
