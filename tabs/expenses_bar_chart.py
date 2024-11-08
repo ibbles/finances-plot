@@ -84,10 +84,18 @@ def create_settings(frame: ttk.Frame, apply_callback):
     )
     end_date_entry.grid(row=0, column=3, padx=5, pady=5)
 
-    apply_button = ttk.Button(settings_frame, text="Apply", command=apply_callback)
-    apply_button.grid(row=0, column=4, padx=5, pady=5)
+    # Add dropdown for resampling frequency
+    ttk.Label(settings_frame, text="Resample By:").grid(row=0, column=4, padx=5, pady=5)
+    resample_option = ttk.Combobox(
+        settings_frame, values=["W", "MS", "YS"], state="readonly"
+    )
+    resample_option.current(1)  # Default to "M" (monthly)
+    resample_option.grid(row=0, column=5, padx=5, pady=5)
 
-    return start_date_entry, end_date_entry
+    apply_button = ttk.Button(settings_frame, text="Apply", command=apply_callback)
+    apply_button.grid(row=0, column=6, padx=5, pady=5)
+
+    return start_date_entry, end_date_entry, resample_option
 
 
 def init_tab(notebook, transactions: pd.DataFrame, by_category):
@@ -100,9 +108,12 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
     def apply_date_filter():
         start_date = pd.to_datetime(start_date_entry.get())
         end_date = pd.to_datetime(end_date_entry.get())
-        update_plot(start_date, end_date)
+        resample_rule = resample_option.get()
+        update_plot(start_date, end_date, resample_rule)
 
-    start_date_entry, end_date_entry = create_settings(frame, apply_date_filter)
+    start_date_entry, end_date_entry, resample_option = create_settings(
+        frame, apply_date_filter
+    )
 
     # Keep a copy of the transactions list so that we can re-run the filtering
     # with different settings later.
@@ -115,7 +126,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
     no_data_label = None
 
     # Function to update the plot with the selected date range
-    def update_plot(start_date, end_date):
+    def update_plot(start_date, end_date, resample_rule):
         nonlocal plot_canvas, no_data_label
 
         # Clear previous plot or message.
@@ -176,19 +187,24 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
         newest_date = filtered_transactions["date"].max()
         newest_date = newest_date.replace(day=1)
         newest_date = newest_date + pd.offsets.MonthBegin(1)
-        full_date_range = pd.date_range(start=oldest_date, end=newest_date, freq="MS")
+        full_date_range = pd.date_range(
+            start=oldest_date, end=newest_date, freq=resample_rule
+        )
 
         # Populate the plot data for each category.
         for category, transactions in by_category:
             transactions_resampled = (
-                transactions[["date", "amount"]].set_index("date").resample("MS").sum()
+                transactions[["date", "amount"]]
+                .set_index("date")
+                .resample(resample_rule)
+                .sum()
             )
             transactions_date_expanded = transactions_resampled.reindex(
                 full_date_range, fill_value=0.0
             )
 
             transactions_memo_resampled = transactions.groupby(
-                pd.Grouper(key="date", freq="MS")
+                pd.Grouper(key="date", freq=resample_rule)
             ).agg({"memo": lambda x: "\n".join(x.array).strip()})
             transactions_memo_date_expanded = transactions_memo_resampled.reindex(
                 full_date_range, fill_value=""
@@ -272,7 +288,8 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
     # Initialize plot with default date range
     start_date = pd.to_datetime(start_date_entry.get())
     end_date = pd.to_datetime(end_date_entry.get())
-    update_plot(start_date, end_date)
+    resample_rule = resample_option.get()
+    update_plot(start_date, end_date, resample_rule)
 
 
 class ExpensesBarChartTab(tab.Tab):
