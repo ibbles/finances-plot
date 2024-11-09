@@ -166,7 +166,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
             categories=sorted_categories,
             ordered=True,
         )
-        by_category = filtered_transactions.groupby("category")
+        by_category = filtered_transactions.groupby("category", observed=False)
 
         # Bail if there is no data to plot.
         if len(filtered_transactions) == 0:
