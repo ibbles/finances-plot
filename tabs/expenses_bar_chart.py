@@ -53,6 +53,12 @@ def filter_away_unwanted_categories(transactions: pd.DataFrame, unwanted_categor
     return transactions
 
 
+def filter_away_large_expenses(transactions: pd.DataFrame, amount_threshold):
+    """Get transactions that are not too large."""
+    transactions = transactions[(transactions["amount"] < amount_threshold)]
+    return transactions
+
+
 def create_settings(frame: ttk.Frame, apply_callback):
     # Settings panel for date range selection
     settings_frame = ttk.Frame(frame)
@@ -95,10 +101,17 @@ def create_settings(frame: ttk.Frame, apply_callback):
     resample_option.current(1)  # Default to "M" (monthly)
     resample_option.grid(row=0, column=5, padx=5, pady=5)
 
-    apply_button = ttk.Button(settings_frame, text="Apply", command=apply_callback)
-    apply_button.grid(row=0, column=6, padx=5, pady=5)
+    ttk.Label(settings_frame, text="Max amount:").grid(row=0, column=6, padx=5, pady=5)
+    amount_threshold_entry = ttk.Spinbox(
+        settings_frame, from_=0, to=100000, increment=1000
+    )
+    amount_threshold_entry.set(0)
+    amount_threshold_entry.grid(row=0, column=7, padx=5, pady=5)
 
-    return start_date_entry, end_date_entry, resample_option
+    apply_button = ttk.Button(settings_frame, text="Apply", command=apply_callback)
+    apply_button.grid(row=0, column=8, padx=5, pady=5)
+
+    return start_date_entry, end_date_entry, resample_option, amount_threshold_entry
 
 
 def init_tab(notebook, transactions: pd.DataFrame, by_category):
@@ -112,10 +125,14 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
         start_date = pd.to_datetime(start_date_entry.get())
         end_date = pd.to_datetime(end_date_entry.get())
         resample_rule = resample_option.get()
-        update_plot(start_date, end_date, resample_rule)
+        try:
+            amount_threshold = int(amount_threshold_entry.get())
+        except ValueError:
+            amount_threshold = None
+        update_plot(start_date, end_date, resample_rule, amount_threshold)
 
-    start_date_entry, end_date_entry, resample_option = create_settings(
-        frame, apply_date_filter
+    start_date_entry, end_date_entry, resample_option, amount_threshold_entry = (
+        create_settings(frame, apply_date_filter)
     )
 
     # Keep a copy of the transactions list so that we can re-run the filtering
@@ -129,8 +146,11 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
     no_data_label = None
 
     # Function to update the plot with the selected date range
-    def update_plot(start_date, end_date, resample_rule):
+    def update_plot(start_date, end_date, resample_rule, amount_threshold):
         nonlocal plot_canvas, no_data_label
+
+        if amount_threshold == 0:
+            amount_threshold = None
 
         # Clear previous plot or message.
         if plot_canvas is not None:
@@ -156,6 +176,11 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
         filtered_transactions = filter_away_unwanted_categories(
             filtered_transactions, unwanted_categories
         )
+
+        if amount_threshold is not None:
+            filtered_transactions = filter_away_large_expenses(
+                filtered_transactions, amount_threshold
+            )
 
         # Sort categories by the total amount spent in each category, descending.
         sorted_categories = (
@@ -219,7 +244,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
                     "memo": lambda x: "\n".join(
                         f"{memo}: {amt:.2f}"
                         for memo, amt in zip(x, transactions.loc[x.index, "amount"])
-                        if memo is not ""
+                        if memo != ""
                     )
                 }
             )
@@ -320,7 +345,11 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
     start_date = pd.to_datetime(start_date_entry.get())
     end_date = pd.to_datetime(end_date_entry.get())
     resample_rule = resample_option.get()
-    update_plot(start_date, end_date, resample_rule)
+    try:
+        amount_threshold = int(amount_threshold_entry.get())
+    except ValueError:
+        amount_threshold = None
+    update_plot(start_date, end_date, resample_rule, amount_threshold)
 
 
 class ExpensesBarChartTab(tab.Tab):
