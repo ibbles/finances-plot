@@ -292,11 +292,11 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
             # column until we have seen enough amounts to enter into the current
             # bar chart box, i.e. until the sum of expenses is larger than the y
             # coordinate of the box.
-            sum = 0
+            total = 0
             expense_label = ""
             for i, expense in enumerate(category_data):
-                sum += expense["amount"].iloc[sel.index]
-                if sum > y:
+                total += expense["amount"].iloc[sel.index]
+                if total > y:
                     memo = category_memo[i]["memo"].iloc[sel.index]
                     expense_label = f"{category_labels[i]}: {height:.2f}\n{memo}"
                     break
