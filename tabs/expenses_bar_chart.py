@@ -183,10 +183,16 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
         # down to the start of the month and newest_date up to the next month to
         # make sure we only have complete months.
         oldest_date = filtered_transactions["date"].min()
-        oldest_date = oldest_date.replace(day=1)
         newest_date = filtered_transactions["date"].max()
-        newest_date = newest_date.replace(day=1)
-        newest_date = newest_date + pd.offsets.MonthBegin(1)
+        if resample_rule == "W" or resample_rule == "W-MON":
+            oldest_date -= pd.to_timedelta(oldest_date.dayofweek, unit="d")
+            newest_date += pd.to_timedelta(7 - newest_date.dayofweek, unit="d")
+        elif resample_rule == "MS":
+            oldest_date = oldest_date.replace(day=1)
+            newest_date += pd.offsets.MonthBegin(1)
+        elif resample_rule == "YS":
+            oldest_date = oldest_date.replace(month=1).replace(day=1)
+            newest_date += pd.offsets.YearBegin(1)
         full_date_range = pd.date_range(
             start=oldest_date, end=newest_date, freq=resample_rule
         )
