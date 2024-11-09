@@ -1,5 +1,8 @@
+import dateutil
+
 import tkinter as tk
 from tkinter import ttk
+import dateutil.rrule
 from tkcalendar import DateEntry
 
 import matplotlib.pyplot as plt
@@ -249,11 +252,11 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
         axes.set_xlabel("Date")
         axes.set_ylabel("Amount")
 
-        if resample_rule == "W":
+        if resample_rule == "W" or resample_rule == "W-MON":
             axes.set_title("Cost Per Week")
-            axes.xaxis.set_major_formatter(DateFormatter("%Y-%W"))
-            axes.xaxis.set_major_locator(WeekdayLocator())
-        elif resample_rule == "M":
+            axes.xaxis.set_major_formatter(DateFormatter("%Y W%W"))
+            axes.xaxis.set_major_locator(WeekdayLocator(dateutil.rrule.SU))
+        elif resample_rule == "MS":
             axes.set_title("Cost Per Month")
             axes.xaxis.set_major_formatter(DateFormatter("%Y-%m"))
             axes.xaxis.set_major_locator(MonthLocator())
