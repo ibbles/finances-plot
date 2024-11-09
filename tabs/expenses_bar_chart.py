@@ -214,7 +214,15 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
 
             transactions_memo_resampled = transactions.groupby(
                 pd.Grouper(key="date", freq=resample_rule)
-            ).agg({"memo": lambda x: "\n".join(x.array).strip()})
+            ).agg(
+                {
+                    "memo": lambda x: "\n".join(
+                        f"{memo}: {amt:.2f}"
+                        for memo, amt in zip(x, transactions.loc[x.index, "amount"])
+                        if memo is not ""
+                    )
+                }
+            )
             transactions_memo_date_expanded = transactions_memo_resampled.reindex(
                 full_date_range, fill_value=""
             )
