@@ -96,7 +96,7 @@ def split_large_expenses(
                 # Move to the next month for each chunk
                 current_date += pd.offsets.MonthBegin(1)
         else:
-            new_transactions.append(transaction)
+            new_transactions.append(transaction.to_dict())
 
     return pd.DataFrame(new_transactions)
 
