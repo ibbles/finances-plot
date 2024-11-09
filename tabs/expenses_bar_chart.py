@@ -230,7 +230,10 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
             (full_date_range[i + 1] - full_date_range[i]).days
             for i in range(len(full_date_range) - 1)
         ]
-        width.append(width[-1])  # Add the width for the last month.
+        # Add the width for the last period. Don't know how long it actually is
+        # so use the second-to-last width again. Doesn't matter much since there
+        # is no neighbor on the right side.
+        width.append(width[-1])
 
         bottom = [0] * len(full_date_range)
 
