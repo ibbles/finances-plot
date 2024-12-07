@@ -111,8 +111,10 @@ def create_settings_panel(frame: ttk.Frame, apply_callback):
 
     column = 0
     row = 0
+    common_grid_options = {"padx": 5, "pady": 5, "sticky": "w"}
+
     ttk.Label(settings_frame, text="Start Date:").grid(
-        row=row, column=column, padx=5, pady=5
+        row=row, column=column, **common_grid_options
     )
     column += 1
     start_date_entry = DateEntry(
@@ -125,11 +127,11 @@ def create_settings_panel(frame: ttk.Frame, apply_callback):
         foreground="white",
         borderwidth=2,
     )
-    start_date_entry.grid(row=row, column=column, padx=5, pady=5)
+    start_date_entry.grid(row=row, column=column, **common_grid_options)
     column += 1
 
     ttk.Label(settings_frame, text="End Date:").grid(
-        row=row, column=column, padx=5, pady=5
+        row=row, column=column, **common_grid_options
     )
     column += 1
     end_date_entry = DateEntry(
@@ -142,11 +144,11 @@ def create_settings_panel(frame: ttk.Frame, apply_callback):
         foreground="white",
         borderwidth=2,
     )
-    end_date_entry.grid(row=row, column=column, padx=5, pady=5)
+    end_date_entry.grid(row=row, column=column, **common_grid_options)
     column += 1
 
     ttk.Label(settings_frame, text="Cut-off Date:").grid(
-        row=row, column=column, padx=5, pady=5
+        row=row, column=column, **common_grid_options
     )
     column += 1
     cutoff_date_entry = DateEntry(
@@ -159,7 +161,7 @@ def create_settings_panel(frame: ttk.Frame, apply_callback):
         foreground="white",
         borderwidth=2,
     )
-    cutoff_date_entry.grid(row=row, column=column, padx=5, pady=5)
+    cutoff_date_entry.grid(row=row, column=column, **common_grid_options)
     column += 1
 
     row += 1
@@ -167,41 +169,41 @@ def create_settings_panel(frame: ttk.Frame, apply_callback):
 
     # Add dropdown for resampling frequency
     ttk.Label(settings_frame, text="Resample By:").grid(
-        row=row, column=column, padx=5, pady=5
+        row=row, column=column, **common_grid_options
     )
     column += 1
     resample_option = ttk.Combobox(
         settings_frame, values=["W", "MS", "YS"], state="readonly"
     )
     resample_option.current(1)  # Default to "M" (monthly)
-    resample_option.grid(row=row, column=column, padx=5, pady=5)
+    resample_option.grid(row=row, column=column, **common_grid_options)
     column += 1
 
     ttk.Label(settings_frame, text="Max amount:").grid(
-        row=row, column=column, padx=5, pady=5
+        row=row, column=column, **common_grid_options
     )
     column += 1
     amount_threshold_entry = ttk.Spinbox(
         settings_frame, from_=0, to=100000, increment=1000
     )
     amount_threshold_entry.set(2000)
-    amount_threshold_entry.grid(row=row, column=column, padx=5, pady=5)
+    amount_threshold_entry.grid(row=row, column=column, **common_grid_options)
     column += 1
 
     ttk.Label(settings_frame, text="Chunk size:").grid(
-        row=row, column=column, padx=5, pady=5
+        row=row, column=column, **common_grid_options
     )
     column += 1
     chunk_size_entry = ttk.Spinbox(settings_frame, from_=100, to=10000, increment=100)
     chunk_size_entry.set(2000)
-    chunk_size_entry.grid(row=row, column=column, padx=5, pady=5)
+    chunk_size_entry.grid(row=row, column=column, **common_grid_options)
     column += 1
 
     row += 1
     column = 0
 
     apply_button = ttk.Button(settings_frame, text="Apply", command=apply_callback)
-    apply_button.grid(row=row, column=column, padx=5, pady=5)
+    apply_button.grid(row=row, column=column, **common_grid_options)
     column += 1
 
     return (
