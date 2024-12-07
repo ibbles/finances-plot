@@ -101,7 +101,7 @@ def split_large_expenses(
     return pd.DataFrame(new_transactions)
 
 
-def create_settings(frame: ttk.Frame, apply_callback):
+def create_settings_panel(frame: ttk.Frame, apply_callback):
     # Settings panel for date range selection
     settings_frame = ttk.Frame(frame)
     settings_frame.pack(side=tk.TOP, fill=tk.X, padx=10, pady=10)
@@ -109,7 +109,10 @@ def create_settings(frame: ttk.Frame, apply_callback):
     today = datetime.date.today()
     year = today.year
 
-    ttk.Label(settings_frame, text="Start Date:").grid(row=0, column=0, padx=5, pady=5)
+    column = 0
+    ttk.Label(settings_frame, text="Start Date:").grid(
+        row=0, column=column, padx=5, pady=5
+    )
     start_date_entry = DateEntry(
         settings_frame,
         width=12,
@@ -120,9 +123,13 @@ def create_settings(frame: ttk.Frame, apply_callback):
         foreground="white",
         borderwidth=2,
     )
-    start_date_entry.grid(row=0, column=1, padx=5, pady=5)
+    column += 1
+    start_date_entry.grid(row=0, column=column, padx=5, pady=5)
+    column += 1
 
-    ttk.Label(settings_frame, text="End Date:").grid(row=0, column=2, padx=5, pady=5)
+    ttk.Label(settings_frame, text="End Date:").grid(
+        row=0, column=column, padx=5, pady=5
+    )
     end_date_entry = DateEntry(
         settings_frame,
         width=12,
@@ -133,34 +140,67 @@ def create_settings(frame: ttk.Frame, apply_callback):
         foreground="white",
         borderwidth=2,
     )
-    end_date_entry.grid(row=0, column=3, padx=5, pady=5)
+    column += 1
+    end_date_entry.grid(row=0, column=column, padx=5, pady=5)
+    column += 1
+
+    ttk.Label(settings_frame, text="Cut-off Date:").grid(
+        row=0, column=column, padx=5, pady=5
+    )
+    column += 1
+    cutoff_date_entry = DateEntry(
+        settings_frame,
+        width=12,
+        year=year + 1,
+        month=12,
+        day=31,
+        background="darkblue",
+        foreground="white",
+        borderwidth=2,
+    )
+    cutoff_date_entry.grid(row=0, column=column, padx=5, pady=5)
+    column += 1
 
     # Add dropdown for resampling frequency
-    ttk.Label(settings_frame, text="Resample By:").grid(row=0, column=4, padx=5, pady=5)
+    ttk.Label(settings_frame, text="Resample By:").grid(
+        row=0, column=column, padx=5, pady=5
+    )
+    column += 1
     resample_option = ttk.Combobox(
         settings_frame, values=["W", "MS", "YS"], state="readonly"
     )
     resample_option.current(1)  # Default to "M" (monthly)
-    resample_option.grid(row=0, column=5, padx=5, pady=5)
+    resample_option.grid(row=0, column=column, padx=5, pady=5)
+    column += 1
 
-    ttk.Label(settings_frame, text="Max amount:").grid(row=0, column=6, padx=5, pady=5)
+    ttk.Label(settings_frame, text="Max amount:").grid(
+        row=0, column=column, padx=5, pady=5
+    )
+    column += 1
     amount_threshold_entry = ttk.Spinbox(
         settings_frame, from_=0, to=100000, increment=1000
     )
     amount_threshold_entry.set(0)
-    amount_threshold_entry.grid(row=0, column=7, padx=5, pady=5)
+    amount_threshold_entry.grid(row=0, column=column, padx=5, pady=5)
+    column += 1
 
-    ttk.Label(settings_frame, text="Chunk size:").grid(row=0, column=8, padx=5, pady=5)
+    ttk.Label(settings_frame, text="Chunk size:").grid(
+        row=0, column=column, padx=5, pady=5
+    )
+    column += 1
     chunk_size_entry = ttk.Spinbox(settings_frame, from_=100, to=10000, increment=100)
     chunk_size_entry.set(1000)
-    chunk_size_entry.grid(row=0, column=9, padx=5, pady=5)
+    chunk_size_entry.grid(row=0, column=column, padx=5, pady=5)
+    column += 1
 
     apply_button = ttk.Button(settings_frame, text="Apply", command=apply_callback)
-    apply_button.grid(row=0, column=10, padx=5, pady=5)
+    apply_button.grid(row=0, column=column, padx=5, pady=5)
+    column += 1
 
     return (
         start_date_entry,
         end_date_entry,
+        cutoff_date_entry,
         resample_option,
         amount_threshold_entry,
         chunk_size_entry,
@@ -177,6 +217,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
     def apply_date_filter():
         start_date = pd.to_datetime(start_date_entry.get())
         end_date = pd.to_datetime(end_date_entry.get())
+        cutoff_date = pd.to_datetime(cutoff_date_entry.get())
         resample_rule = resample_option.get()
         try:
             amount_threshold = int(amount_threshold_entry.get())
@@ -186,15 +227,23 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
             chunk_size = int(chunk_size_entry.get())
         except ValueError:
             chunk_size = None
-        update_plot(start_date, end_date, resample_rule, amount_threshold, chunk_size)
+        update_plot(
+            start_date,
+            end_date,
+            cutoff_date,
+            resample_rule,
+            amount_threshold,
+            chunk_size,
+        )
 
     (
         start_date_entry,
         end_date_entry,
+        cutoff_date_entry,
         resample_option,
         amount_threshold_entry,
         chunk_size_entry,
-    ) = create_settings(frame, apply_date_filter)
+    ) = create_settings_panel(frame, apply_date_filter)
 
     # Keep a copy of the transactions list so that we can re-run the filtering
     # with different settings later.
@@ -207,7 +256,9 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
     no_data_label = None
 
     # Function to update the plot with the selected date range
-    def update_plot(start_date, end_date, resample_rule, amount_threshold, chunk_size):
+    def update_plot(
+        start_date, end_date, cutoff_date, resample_rule, amount_threshold, chunk_size
+    ):
         nonlocal plot_canvas, no_data_label
 
         if amount_threshold == 0:
@@ -283,6 +334,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
         elif resample_rule == "YS":
             oldest_date = oldest_date.replace(month=1).replace(day=1)
             newest_date += pd.offsets.YearBegin(1)
+        newest_date = min(newest_date, cutoff_date)
         full_date_range = pd.date_range(
             start=oldest_date, end=newest_date, freq=resample_rule
         )
@@ -406,6 +458,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
     # Initialize plot with default date range
     start_date = pd.to_datetime(start_date_entry.get())
     end_date = pd.to_datetime(end_date_entry.get())
+    cutoff_date = pd.to_datetime(cutoff_date_entry.get())
     resample_rule = resample_option.get()
     try:
         amount_threshold = int(amount_threshold_entry.get())
@@ -415,7 +468,9 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
         chunk_size = int(chunk_size_entry.get())
     except ValueError:
         chunk_size = None
-    update_plot(start_date, end_date, resample_rule, amount_threshold, chunk_size)
+    update_plot(
+        start_date, end_date, cutoff_date, resample_rule, amount_threshold, chunk_size
+    )
 
 
 class DistributedExpensesBarChartTab(tab.Tab):
