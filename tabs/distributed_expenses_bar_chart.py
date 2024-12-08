@@ -440,7 +440,8 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
         plot_canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
 
         def create_tooltip(sel):
-            print("create_tooltip called.")
+            print("Timer fired.")
+
             # Find which part of the bar chart the cursor is currently on top of.
             x, y, width, height = sel.artist[sel.index].get_bbox().bounds
             sel.annotation.xy = (x + width / 2, y + height)
@@ -465,9 +466,9 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
                 anncoords="offset points",
             )
             sel.annotation.set_text(expense_label)
+            sel.annotation.set_visible(True)
             plot_canvas.draw_idle()
-            print(f"Set text '{expense_label}'.")
-            print(f"Tool-tip created from selection {sel}")
+            print(f"Timer callback complete.")
 
         tooltip_timer = None
         last_mouse_position = None
@@ -478,25 +479,25 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
             nonlocal last_mouse_position
             nonlocal last_selection
 
-            print("update_last_mouse_position called.")
             if mouse_position != last_mouse_position:
                 last_mouse_position = mouse_position
-                print(f"Got new mouse position: {last_mouse_position}")
 
             if tooltip_timer is not None:
                 tooltip_timer.cancel()
+                print("Timer canceled.")
 
             def call_create_tooltip():
+                nonlocal tooltip_timer
                 nonlocal last_selection
-                print(f"Tool-tip timer triggered. last_selection: {last_selection}")
+
+                tooltip_timer = None
 
                 if last_selection is not None:
-                    print("Creating tool-tip.")
                     create_tooltip(last_selection)
 
-            print("Starting tool-tip timer.")
-            tooltip_timer = threading.Timer(0.5, call_create_tooltip)
+            tooltip_timer = threading.Timer(0.2, call_create_tooltip)
             tooltip_timer.start()
+            print("Timer started.")
 
         plot_canvas.mpl_connect(
             "motion_notify_event",
@@ -510,9 +511,12 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
         def on_add(selection):
             """Callback called by mplcursors when the mouse cursor is moved over the bar chart."""
             nonlocal last_selection
+            nonlocal tooltip_timer
+            if tooltip_timer is not None:
+                selection.annotation.set_text("")
+                selection.annotation.set_visible(False)
+                print("Timer is running so hiding tool-tip.")
             last_selection = selection
-            selection.annotation.set_text("My Text")
-            print(f"last_selection updated. Is now: {last_selection}")
 
     # Initialize plot with default date range
     start_date = pd.to_datetime(start_date_entry.get())
