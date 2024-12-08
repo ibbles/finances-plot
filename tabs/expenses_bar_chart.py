@@ -311,7 +311,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
         plot_canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
 
         # Set up the category hover tool-tips.
-        cursor = mplcursors.cursor(hover=mplcursors.HoverMode.Transient)
+        cursor = mplcursors.cursor(figure, hover=mplcursors.HoverMode.Transient)
 
         @cursor.connect("add")
         def on_add(sel):
