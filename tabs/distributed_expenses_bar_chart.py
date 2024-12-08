@@ -475,7 +475,6 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
             nonlocal last_selection
             nonlocal tooltip_text
             nonlocal tooltip_timer
-            print("Updating tool-tip.")
             tooltip_timer = None
             tooltip_text = create_tooltip_text(last_selection)
             # Assign the tool-tip text.
@@ -485,7 +484,14 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
                 anncoords="offset points",
             )
             plot_canvas.draw_idle()
-            print(f"update_tooltip complete.")
+
+        # def update_last_mouse_position(position):
+        #     print("Got new mouse position")
+
+        # plot_canvas.mpl_connect(
+        #     "motion_notify_event",
+        #     lambda event: update_last_mouse_position((event.x, event.y)),
+        # )
 
         # Set up the category hover tool-tips.
         cursor = mplcursors.cursor(figure, hover=mplcursors.HoverMode.Transient)
@@ -498,13 +504,11 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
             nonlocal tooltip_text
             if tooltip_timer is not None:
                 tooltip_timer.cancel()
-                print("Old timer canceled.")
 
             if last_selection is not selection:
                 last_selection = selection
-                tooltip_timer = threading.Timer(0.2, update_tooltip)
+                tooltip_timer = threading.Timer(0.5, update_tooltip)
                 tooltip_timer.start()
-                print("Timer started.")
 
             selection.annotation.set(
                 text=tooltip_text, position=(0, 20), anncoords="offset points"
