@@ -25,6 +25,14 @@ import tab
 # SettingWithCopyWarning: A value is trying to be set on a copy of a slice from a DataFrame.
 pd.options.mode.copy_on_write = True
 
+old_print = print
+
+
+def print(msg):
+    import time
+
+    old_print(f"{time.time()}: {msg}")
+
 
 def filter_to_date_range(
     transactions: pd.DataFrame, first_date: pd.Timestamp, last_date: pd.Timestamp
@@ -439,9 +447,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
         plot_canvas.draw()
         plot_canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
 
-        def create_tooltip(sel):
-            print("Timer fired.")
-
+        def create_tooltip_text(sel):
             # Find which part of the bar chart the cursor is currently on top of.
             x, y, width, height = sel.artist[sel.index].get_bbox().bounds
             sel.annotation.xy = (x + width / 2, y + height)
@@ -459,50 +465,27 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
                     expense_label = f"{category_labels[i]}: {height:.2f}\n{memo}"
                     break
 
+            return expense_label
+
+        tooltip_timer = None
+        last_selection = None
+        tooltip_text = ""
+
+        def update_tooltip():
+            nonlocal last_selection
+            nonlocal tooltip_text
+            nonlocal tooltip_timer
+            print("Updating tool-tip.")
+            tooltip_timer = None
+            tooltip_text = create_tooltip_text(last_selection)
             # Assign the tool-tip text.
-            sel.annotation.set(
-                text=expense_label,
+            last_selection.annotation.set(
+                text=tooltip_text,
                 position=(0, 20),
                 anncoords="offset points",
             )
-            sel.annotation.set_text(expense_label)
-            sel.annotation.set_visible(True)
             plot_canvas.draw_idle()
-            print(f"Timer callback complete.")
-
-        tooltip_timer = None
-        last_mouse_position = None
-        last_selection = None
-
-        def update_last_mouse_position(mouse_position):
-            nonlocal tooltip_timer
-            nonlocal last_mouse_position
-            nonlocal last_selection
-
-            if mouse_position != last_mouse_position:
-                last_mouse_position = mouse_position
-
-            if tooltip_timer is not None:
-                tooltip_timer.cancel()
-                print("Timer canceled.")
-
-            def call_create_tooltip():
-                nonlocal tooltip_timer
-                nonlocal last_selection
-
-                tooltip_timer = None
-
-                if last_selection is not None:
-                    create_tooltip(last_selection)
-
-            tooltip_timer = threading.Timer(0.2, call_create_tooltip)
-            tooltip_timer.start()
-            print("Timer started.")
-
-        plot_canvas.mpl_connect(
-            "motion_notify_event",
-            lambda event: update_last_mouse_position((event.x, event.y)),
-        )
+            print(f"update_tooltip complete.")
 
         # Set up the category hover tool-tips.
         cursor = mplcursors.cursor(figure, hover=mplcursors.HoverMode.Transient)
@@ -512,11 +495,20 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
             """Callback called by mplcursors when the mouse cursor is moved over the bar chart."""
             nonlocal last_selection
             nonlocal tooltip_timer
+            nonlocal tooltip_text
             if tooltip_timer is not None:
-                selection.annotation.set_text("")
-                selection.annotation.set_visible(False)
-                print("Timer is running so hiding tool-tip.")
-            last_selection = selection
+                tooltip_timer.cancel()
+                print("Old timer canceled.")
+
+            if last_selection is not selection:
+                last_selection = selection
+                tooltip_timer = threading.Timer(0.2, update_tooltip)
+                tooltip_timer.start()
+                print("Timer started.")
+
+            selection.annotation.set(
+                text=tooltip_text, position=(0, 20), anncoords="offset points"
+            )
 
     # Initialize plot with default date range
     start_date = pd.to_datetime(start_date_entry.get())
