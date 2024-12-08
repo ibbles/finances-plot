@@ -1,19 +1,24 @@
-import dateutil
-
+# UI imports.
 import tkinter as tk
 from tkinter import ttk
 import dateutil.rrule
 from tkcalendar import DateEntry
 
+# Plotting imports.
 import matplotlib.pyplot as plt
 from matplotlib.dates import MonthLocator, DateFormatter, WeekdayLocator, YearLocator
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import mplcursors
 
+# Data processing imports.
 import pandas as pd
 
-import mplcursors
+# Standard library imports.
 import datetime
+import dateutil
+import threading
 
+# Project imports.
 import tab
 
 # See https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
@@ -371,6 +376,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
                     )
                 }
             )
+
             transactions_memo_date_expanded = transactions_memo_resampled.reindex(
                 full_date_range, fill_value=""
             )
@@ -433,13 +439,8 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
         plot_canvas.draw()
         plot_canvas.get_tk_widget().pack(expand=True, fill=tk.BOTH)
 
-        # Set up the category hover tool-tips.
-        cursor = mplcursors.cursor(hover=mplcursors.HoverMode.Transient)
-
-        @cursor.connect("add")
-        def on_add(sel):
-            """Callback called by mplcursors when the mouse cursor is moved over the bar chart."""
-
+        def create_tooltip(sel):
+            print("create_tooltip called.")
             # Find which part of the bar chart the cursor is currently on top of.
             x, y, width, height = sel.artist[sel.index].get_bbox().bounds
             sel.annotation.xy = (x + width / 2, y + height)
@@ -463,6 +464,55 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
                 position=(0, 20),
                 anncoords="offset points",
             )
+            sel.annotation.set_text(expense_label)
+            plot_canvas.draw_idle()
+            print(f"Set text '{expense_label}'.")
+            print(f"Tool-tip created from selection {sel}")
+
+        tooltip_timer = None
+        last_mouse_position = None
+        last_selection = None
+
+        def update_last_mouse_position(mouse_position):
+            nonlocal tooltip_timer
+            nonlocal last_mouse_position
+            nonlocal last_selection
+
+            print("update_last_mouse_position called.")
+            if mouse_position != last_mouse_position:
+                last_mouse_position = mouse_position
+                print(f"Got new mouse position: {last_mouse_position}")
+
+            if tooltip_timer is not None:
+                tooltip_timer.cancel()
+
+            def call_create_tooltip():
+                nonlocal last_selection
+                print(f"Tool-tip timer triggered. last_selection: {last_selection}")
+
+                if last_selection is not None:
+                    print("Creating tool-tip.")
+                    create_tooltip(last_selection)
+
+            print("Starting tool-tip timer.")
+            tooltip_timer = threading.Timer(0.5, call_create_tooltip)
+            tooltip_timer.start()
+
+        plot_canvas.mpl_connect(
+            "motion_notify_event",
+            lambda event: update_last_mouse_position((event.x, event.y)),
+        )
+
+        # Set up the category hover tool-tips.
+        cursor = mplcursors.cursor(figure, hover=mplcursors.HoverMode.Transient)
+
+        @cursor.connect("add")
+        def on_add(selection):
+            """Callback called by mplcursors when the mouse cursor is moved over the bar chart."""
+            nonlocal last_selection
+            last_selection = selection
+            selection.annotation.set_text("My Text")
+            print(f"last_selection updated. Is now: {last_selection}")
 
     # Initialize plot with default date range
     start_date = pd.to_datetime(start_date_entry.get())
@@ -486,7 +536,7 @@ class DistributedExpensesBarChartTab(tab.Tab):
     """Class implementing the Tab interface, populating itself with a bar chart."""
 
     def init(self, notebook, transactions, by_account, by_category, resample_rule):
-        print("ExpensesBarChartTab.init")
+        print("DistributedExpensesBarChartTab.init")
         init_tab(notebook, transactions, by_category)
 
 
