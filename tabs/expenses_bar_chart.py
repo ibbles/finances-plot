@@ -355,7 +355,9 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
 class ExpensesBarChartTab(tab.Tab):
     """Class implementing the Tab interface, populating itself with a bar chart."""
 
-    def init(self, notebook, transactions, by_account, by_category, resample_rule):
+    def init(
+        self, notebook, transactions, by_account, by_category, resample_rule, verbose
+    ):
         print("ExpensesBarChartTab.init")
         init_tab(notebook, transactions, by_category)
 

@@ -102,6 +102,9 @@ def parse_arguments():
         choices=["days", "weeks", "months", "quarters", "years"],
         help="Time resolution for plotting.",
     )
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable extra debug output."
+    )
     args = parser.parse_args()
     return args
 
@@ -198,7 +201,9 @@ def main():
 
     # for tab in tabs.values():
     for tab in loaded_tabs:
-        tab.init(notebook, df, by_account, by_category, resample_rule)
+        loaded_tab.init(
+            notebook, df, by_account, by_category, resample_rule, args.verbose
+        )
 
     def close_window():
         window.quit()

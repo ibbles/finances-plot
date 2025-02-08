@@ -229,7 +229,7 @@ def create_settings_panel(frame: ttk.Frame, apply_callback):
     )
 
 
-def init_tab(notebook, transactions: pd.DataFrame, by_category):
+def init_tab(notebook, transactions: pd.DataFrame, by_category, verbose):
     """Create the tab and its constituent widgets."""
 
     # Create main GUI container widget.
@@ -311,11 +311,17 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
             filtered_transactions, unwanted_categories
         )
 
+        if verbose:
+            print(f"After filtering: {len(filtered_transactions)}")
+
         # Split large expenses into smaller chunks if necessary.
         if amount_threshold is not None and chunk_size is not None:
             filtered_transactions = split_large_expenses(
                 filtered_transactions, amount_threshold, chunk_size
             )
+
+        if verbose:
+            print(f"After chunking: {len(filtered_transactions)}")
 
         # Sort categories by the total amount spent in each category, descending.
         sorted_categories = (
@@ -535,9 +541,11 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category):
 class DistributedExpensesBarChartTab(tab.Tab):
     """Class implementing the Tab interface, populating itself with a bar chart."""
 
-    def init(self, notebook, transactions, by_account, by_category, resample_rule):
+    def init(
+        self, notebook, transactions, by_account, by_category, resample_rule, verbose
+    ):
         print("DistributedExpensesBarChartTab.init")
-        init_tab(notebook, transactions, by_category)
+        init_tab(notebook, transactions, by_category, verbose)
 
 
 def get_tab():
