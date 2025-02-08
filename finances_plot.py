@@ -30,6 +30,9 @@ from tkinter import ttk
 # Library imports
 import pandas as pd
 
+# Application imports.
+import tab
+
 
 def fail(message):
     """Terminate the application with an error message."""
@@ -49,14 +52,14 @@ def path_in_app_root(path):
     return os.path.join(get_app_root(), path)
 
 
-def load_tabs():
+def load_tabs() -> list[tab.Tab]:
     """
     Search for plugins within the 'tabs' directory and create a tab for each.
     """
 
     # List of tab.Tab instances that has been loaded from a plugin module in the
     # tabs directory.
-    loaded_tabs = []
+    loaded_tabs: list[tab.Tab] = []
 
     tabs_path = path_in_app_root("tabs")
 
@@ -77,8 +80,8 @@ def load_tabs():
                 module = importlib.import_module(name)
                 if hasattr(module, "get_tab"):
                     # The module is a tab plugin. Have it create its tab.
-                    tab = module.get_tab()
-                    loaded_tabs.append(tab)
+                    loaded_tab: tab.Tab = module.get_tab()
+                    loaded_tabs.append(loaded_tab)
                 else:
                     print(f"Error: Tab '{name}' does not have 'get_tab' function.")
             except ImportError as e:
@@ -113,7 +116,7 @@ def main():
     """Main function."""
 
     args = parse_arguments()
-    loaded_tabs = load_tabs()
+    loaded_tabs: list[tab.Tab] = load_tabs()
 
     # Find the data file, either relative to the current working directory, or
     # relative to the application install directory.
@@ -200,7 +203,7 @@ def main():
     notebook.pack(fill=tk.BOTH, expand=True)
 
     # for tab in tabs.values():
-    for tab in loaded_tabs:
+    for loaded_tab in loaded_tabs:
         loaded_tab.init(
             notebook, df, by_account, by_category, resample_rule, args.verbose
         )
