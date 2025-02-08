@@ -25,14 +25,6 @@ import tab
 # SettingWithCopyWarning: A value is trying to be set on a copy of a slice from a DataFrame.
 pd.options.mode.copy_on_write = True
 
-old_print = print
-
-
-def print(msg):
-    import time
-
-    old_print(f"{time.time()}: {msg}")
-
 
 def filter_to_date_range(
     transactions: pd.DataFrame, first_date: pd.Timestamp, last_date: pd.Timestamp
@@ -304,6 +296,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category, verbose):
         filtered_transactions = filter_to_expenses(filtered_transactions)
 
         # Remove transactions in categories that aren't "real" expenses.
+        # TODO Should we provide the option to filter away accounts as well?
         unwanted_categories = [
             "Negativ avkastning"  # Value changes in investments is not an expense.
         ]
@@ -322,6 +315,12 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category, verbose):
 
         if verbose:
             print(f"After chunking: {len(filtered_transactions)}")
+
+        # Bail if there is no data to plot.
+        if len(filtered_transactions) == 0:
+            no_data_label = ttk.Label(plot_frame, text="No data")
+            no_data_label.pack()
+            return
 
         # Sort categories by the total amount spent in each category, descending.
         sorted_categories = (
