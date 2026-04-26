@@ -19,6 +19,9 @@ Virtual environment setup on Ubuntu 22.04:
 ➤ source venv/bin/activate.fish
 ➤ pip3 install pandas matplotlib
 
+# Se below, after the code block, for additional pip packages required in some
+# circumstances.
+
 # Depending on your OS / Linux distribution you need to do one of these:
 
 # Option 1
@@ -46,3 +49,5 @@ Some tabs require additional libraries:
 - `pip3 install bokeh`
   - An entire plotting tool, alternative to matplotlib.
   - Opens in a web browser.
+  - Not really used, I don't think.
+
