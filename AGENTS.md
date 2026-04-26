@@ -48,11 +48,11 @@ annotations for new shared functions, following the existing gradual typing in
 
 ## Testing Guidelines
 
-There is no automated test suite yet. For changes, run a manual smoke test with
-`test_export.csv` or another known-good export and verify the relevant tab opens
-without import errors. For converter changes, compare generated CSV columns with
-the expected `date;amount;account;category;payee;memo` format. If adding tests,
-place them under `tests/` and name files `test_*.py`.
+Run automated tests with `python3 -m unittest discover -s tests`. Tests live in
+`tests/` and use `test_*.py` naming. For changes, also run a manual smoke test
+with `test_export.csv` or another known-good export and verify the relevant tab
+opens without import errors. For converter changes, compare generated CSV
+columns with the expected `date;amount;account;category;payee;memo` format.
 
 ## Commit & Pull Request Guidelines
 
@@ -66,3 +66,8 @@ screenshots when plot output or Tkinter layout changes.
 
 Do not commit personal finance exports. Keep private CSV and KMyMoney files out
 of git, and prefer sanitized sample data for debugging or reviews.
+
+## Project Memory
+
+Read `MEMORY.md` before non-trivial changes. It records useful context from
+previous sessions, including confirmed behavior and collaboration notes.
