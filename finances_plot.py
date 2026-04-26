@@ -16,7 +16,7 @@ MyFinances.csv:
   $ python3 kmy_to_csv.py MyFinances.xml
 
 
-usage: finances_plot.py [-h] csv_filename {days,weeks,months,quarters,years}
+usage: finances_plot.py [-h] CSV_FILE {days,weeks,months,quarters,years}
 """
 
 # System imports.
@@ -24,11 +24,11 @@ import argparse
 import importlib
 import os
 import sys
-import tkinter as tk
-from tkinter import ttk
 
 # Library imports
 import pandas as pd
+import tkinter as tk
+from tkinter import ttk
 
 # Application imports.
 import tab
@@ -70,12 +70,15 @@ def load_tabs() -> list[tab.Tab]:
         # in sys.path.
         if dirpath not in sys.path:
             sys.path.insert(0, dirpath)
+
         for file in files:
             # Check if the file looks like a tab plugin. For now assume that any
             # .py file is a tab plugin.
             (name, ext) = os.path.splitext(file)
             if not ext == os.extsep + "py":
                 continue
+
+            # Load the plugin and create a tab.
             try:
                 module = importlib.import_module(name)
                 if hasattr(module, "get_tab"):
@@ -95,11 +98,12 @@ def load_tabs() -> list[tab.Tab]:
 
 
 def parse_arguments():
-    # Parse command line arguments.
+    """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Plot data with time resolution")
     parser.add_argument(
         "csv_filename", help="The CSV file containing the exported account data."
     )
+    print("TODO: Remove 'resolution' argument, add per-tab UI setting.")  # TODO
     parser.add_argument(
         "resolution",
         choices=["days", "weeks", "months", "quarters", "years"],
@@ -142,17 +146,37 @@ def main():
     # However, we only record our own accounts so any transactions that have an
     # endpoint elsewhere, such as a store, will only have one endpoint included
     # in the data. A transfer between two of our own accounts has two rows, one
-    # for each account.
+    # for each account. It is possible for a transaction to have more than two
+    # endpoints i.e. more than two rows. In this case some amount of money is
+    # moved from one account to two or more other accounts, or from two or more
+    # acounts into an account. This is uncommon.
     #
     # The "date" column is given in "YYYY-MM-DD" format, a.k.a. '%Y-%m-%d'. Some
     # transactions have an all-zero date, the "amount" column then give the
     # opening balance for that account. There is exactly one such row for each
     # account and it is always the first row for that account.
     #
+    # The "amount" column is the amount of money transfered by the transaction.
+    # The amount is signed, meaning that a positive amount increases the value
+    # of the account while a negative amount decreases it. The amounts for all
+    # endpoints for a transaction always sum to zero since all money that left
+    # the source account(s) will be but into the destination account(s).
+    # Remember that some endpoints aren't represented as rows in the data, so
+    # summing them will often not result in zero.
+    #
     # The "account" column is the name of the account that the current
     # transaction modifies. Transactions that involve multiple accounts, i.e.
     # transfers, consists of two or more rows, one for each account in the
     # transaction.
+    #
+    # The "category" column is a string the describe the type of purchase made.
+    # For account-to-account transfers the category may be empty.
+    #
+    # The "payee" column is the receiver of a payment. This is always set for
+    # single-endpoint transactions, i.e. when we bought something.
+    #
+    # The "memo" column may contain a reminer of what was bought or why. This is
+    # a free-text field and may be empty.
 
     # Load the CSV file into a DataFrame.
     df = pd.read_csv(filename, delimiter=";")
