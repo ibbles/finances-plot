@@ -527,6 +527,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category, verbose):
                 tooltip_timer = threading.Timer(0.5, update_tooltip)
                 tooltip_timer.start()
 
+            tooltip_text = ""
             selection.annotation.set(
                 text=tooltip_text, position=(0, 20), anncoords="offset points"
             )
