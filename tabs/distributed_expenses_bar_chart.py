@@ -1,3 +1,15 @@
+""" Distributed Expenses Bar Chart is a tab that displays expenses as a bar per
+week, month, or year. Each bar consists of the expense categories as stacked
+boxes. For large expences, instead of having each such expense contribute its
+whole amount to the week/month/year where it was recorded, this tab distributes
+the cost over multiple months. The purpose is to give a more representative
+view of the per-peried expenses, to smooth out time periods with high-expense
+transactions and let low-expense time periods take some of the load.
+Additionally, it gives a pay-it-off view of large expenses in that the user is
+encourage to remember large prior expenses and avoid taking on new expenses
+until the previous one has been "paied off"."""
+
+
 # UI imports.
 import tkinter as tk
 from tkinter import ttk
@@ -44,7 +56,7 @@ def filter_to_date_range(
 def filter_to_expenses(transactions: pd.DataFrame):
     """Get transactions that are expenses, i.e. have a negative amount.
 
-    The amounts are made positive.
+    The amounts are made positive in the returned DataFrame for easier plotting.
     """
     transactions = transactions[(transactions["amount"] < 0)]
     transactions.loc[:, "amount"] = transactions.loc[:, "amount"].abs()
@@ -269,7 +281,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category, verbose):
     plot_canvas = None
     no_data_label = None
 
-    # Function to update the plot with the selected date range
+    # Function to update the plot with the selected date range.
     def update_plot(
         start_date, end_date, cutoff_date, resample_rule, amount_threshold, chunk_size
     ):
