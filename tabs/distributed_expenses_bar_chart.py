@@ -118,6 +118,52 @@ def split_large_expenses(
     return pd.DataFrame(new_transactions)
 
 
+def prepare_transactions_for_plot(
+    transactions: pd.DataFrame,
+    start_date: pd.Timestamp,
+    end_date: pd.Timestamp,
+    amount_threshold,
+    chunk_size,
+    verbose: bool = False,
+):
+    """Filter and split transactions into the rows that should be plotted."""
+
+    # Only include expenses.
+    filtered_transactions = filter_to_expenses(transactions)
+
+    # Remove transactions in categories that aren't "real" expenses.
+    # TODO Should we provide the option to filter away accounts as well?
+    unwanted_categories = [
+        "Negativ avkastning"  # Value changes in investments is not an expense.
+    ]
+    filtered_transactions = filter_away_unwanted_categories(
+        filtered_transactions, unwanted_categories
+    )
+
+    if verbose:
+        print(f"After expense/category filtering: {len(filtered_transactions)}")
+
+    # Split large expenses before date filtering so chunks from earlier
+    # transactions can contribute inside the selected date range.
+    if amount_threshold is not None and chunk_size is not None:
+        filtered_transactions = split_large_expenses(
+            filtered_transactions, amount_threshold, chunk_size
+        )
+
+    if verbose:
+        print(f"After chunking: {len(filtered_transactions)}")
+
+    # Only display chunks and transactions in the selected date range.
+    filtered_transactions = filter_to_date_range(
+        filtered_transactions, start_date, end_date
+    )
+
+    if verbose:
+        print(f"After date filtering: {len(filtered_transactions)}")
+
+    return filtered_transactions
+
+
 def create_settings_panel(frame: ttk.Frame, apply_callback):
     # Settings panel for date range selection
     settings_frame = ttk.Frame(frame)
@@ -299,34 +345,14 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category, verbose):
             no_data_label.destroy()
             no_data_label = None
 
-        # Only include transactions in the selected date range.
-        filtered_transactions = filter_to_date_range(
-            original_transactions, start_date, end_date
+        filtered_transactions = prepare_transactions_for_plot(
+            original_transactions,
+            start_date,
+            end_date,
+            amount_threshold,
+            chunk_size,
+            verbose,
         )
-
-        # Only include expenses.
-        filtered_transactions = filter_to_expenses(filtered_transactions)
-
-        # Remove transactions in categories that aren't "real" expenses.
-        # TODO Should we provide the option to filter away accounts as well?
-        unwanted_categories = [
-            "Negativ avkastning"  # Value changes in investments is not an expense.
-        ]
-        filtered_transactions = filter_away_unwanted_categories(
-            filtered_transactions, unwanted_categories
-        )
-
-        if verbose:
-            print(f"After filtering: {len(filtered_transactions)}")
-
-        # Split large expenses into smaller chunks if necessary.
-        if amount_threshold is not None and chunk_size is not None:
-            filtered_transactions = split_large_expenses(
-                filtered_transactions, amount_threshold, chunk_size
-            )
-
-        if verbose:
-            print(f"After chunking: {len(filtered_transactions)}")
 
         # Bail if there is no data to plot.
         if len(filtered_transactions) == 0:
