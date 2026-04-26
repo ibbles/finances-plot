@@ -209,9 +209,9 @@ def main():
     resolution_mapping = {
         "days": "D",
         "weeks": "W",
-        "months": "M",
-        "quarters": "Q",
-        "years": "A",
+        "months": "MS",
+        "quarters": "QS",
+        "years": "YS",
     }
 
     # Get the resample rule parameter based on the selected resolution.
