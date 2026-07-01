@@ -1,4 +1,4 @@
-""" Distributed Expenses Bar Chart is a tab that displays expenses as a bar per
+"""Distributed Expenses Bar Chart is a tab that displays expenses as a bar per
 week, month, or year. Each bar consists of the expense categories as stacked
 boxes. For large expences, instead of having each such expense contribute its
 whole amount to the week/month/year where it was recorded, this tab distributes
@@ -37,6 +37,12 @@ import tab
 # SettingWithCopyWarning: A value is trying to be set on a copy of a slice from a DataFrame.
 pd.options.mode.copy_on_write = True
 
+# The amount above which a transaction is to be split into chunks.
+default_threshold = 5000
+
+# For transactions larger than the threshold, the chunk size it should be split into.
+default_chunksize = 5000
+
 
 def filter_to_date_range(
     transactions: pd.DataFrame, first_date: pd.Timestamp, last_date: pd.Timestamp
@@ -70,9 +76,9 @@ def filter_away_unwanted_categories(transactions: pd.DataFrame, unwanted_categor
     return transactions
 
 
-def filter_away_large_expenses(transactions: pd.DataFrame, amount_threshold):
+def filter_away_large_expenses(transactions: pd.DataFrame, threshold_value):
     """Get transactions that are not too large."""
-    transactions = transactions[(transactions["amount"] < amount_threshold)]
+    transactions = transactions[(transactions["amount"] < threshold_value)]
     return transactions
 
 
@@ -122,7 +128,7 @@ def prepare_transactions_for_plot(
     transactions: pd.DataFrame,
     start_date: pd.Timestamp,
     end_date: pd.Timestamp,
-    amount_threshold,
+    threshold_value,
     chunk_size,
     verbose: bool = False,
 ):
@@ -145,9 +151,9 @@ def prepare_transactions_for_plot(
 
     # Split large expenses before date filtering so chunks from earlier
     # transactions can contribute inside the selected date range.
-    if amount_threshold is not None and chunk_size is not None:
+    if threshold_value is not None and chunk_size is not None:
         filtered_transactions = split_large_expenses(
-            filtered_transactions, amount_threshold, chunk_size
+            filtered_transactions, threshold_value, chunk_size
         )
 
     if verbose:
@@ -162,6 +168,53 @@ def prepare_transactions_for_plot(
         print(f"After date filtering: {len(filtered_transactions)}")
 
     return filtered_transactions
+
+
+def add_tooltip(widget, text):
+    tooltip_window = None
+    tooltip_after_id = None
+
+    def show_tooltip():
+        nonlocal tooltip_window, tooltip_after_id
+        tooltip_after_id = None
+        if tooltip_window is not None:
+            return
+
+        x = widget.winfo_rootx() + 20
+        y = widget.winfo_rooty() + widget.winfo_height() + 5
+        tooltip_window = tk.Toplevel(widget)
+        tooltip_window.wm_overrideredirect(True)
+        tooltip_window.wm_geometry(f"+{x}+{y}")
+
+        label = tk.Label(
+            tooltip_window,
+            text=text,
+            justify=tk.LEFT,
+            background="#ffffe0",
+            relief=tk.SOLID,
+            borderwidth=1,
+            padx=5,
+            pady=3,
+        )
+        label.pack()
+
+    def hide_tooltip():
+        nonlocal tooltip_window, tooltip_after_id
+        if tooltip_after_id is not None:
+            widget.after_cancel(tooltip_after_id)
+            tooltip_after_id = None
+        if tooltip_window is not None:
+            tooltip_window.destroy()
+            tooltip_window = None
+
+    def schedule_tooltip(_event):
+        nonlocal tooltip_after_id
+        if tooltip_after_id is None:
+            tooltip_after_id = widget.after(500, show_tooltip)
+
+    widget.bind("<Enter>", schedule_tooltip, add="+")
+    widget.bind("<Leave>", lambda _event: hide_tooltip(), add="+")
+    widget.bind("<ButtonPress>", lambda _event: hide_tooltip(), add="+")
 
 
 def create_settings_panel(frame: ttk.Frame, apply_callback):
@@ -242,15 +295,19 @@ def create_settings_panel(frame: ttk.Frame, apply_callback):
     resample_option.grid(row=row, column=column, **common_grid_options)
     column += 1
 
-    ttk.Label(settings_frame, text="Max amount:").grid(
-        row=row, column=column, **common_grid_options
+    threshold_label = ttk.Label(settings_frame, text="Chunking Threshold:")
+    threshold_label.grid(row=row, column=column, **common_grid_options)
+    add_tooltip(
+        threshold_label,
+        "Expenses above this amount are split into chunks and distributed over "
+        "future months. Set to 0 to disable chunking.",
     )
     column += 1
-    amount_threshold_entry = ttk.Spinbox(
+    threshold_entry = ttk.Spinbox(
         settings_frame, from_=0, to=100000, increment=1000
     )
-    amount_threshold_entry.set(2000)
-    amount_threshold_entry.grid(row=row, column=column, **common_grid_options)
+    threshold_entry.set(default_threshold)
+    threshold_entry.grid(row=row, column=column, **common_grid_options)
     column += 1
 
     ttk.Label(settings_frame, text="Chunk size:").grid(
@@ -258,7 +315,7 @@ def create_settings_panel(frame: ttk.Frame, apply_callback):
     )
     column += 1
     chunk_size_entry = ttk.Spinbox(settings_frame, from_=100, to=10000, increment=100)
-    chunk_size_entry.set(2000)
+    chunk_size_entry.set(default_chunksize)
     chunk_size_entry.grid(row=row, column=column, **common_grid_options)
     column += 1
 
@@ -274,7 +331,7 @@ def create_settings_panel(frame: ttk.Frame, apply_callback):
         end_date_entry,
         cutoff_date_entry,
         resample_option,
-        amount_threshold_entry,
+        threshold_entry,
         chunk_size_entry,
     )
 
@@ -292,9 +349,9 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category, verbose):
         cutoff_date = pd.to_datetime(cutoff_date_entry.get())
         resample_rule = resample_option.get()
         try:
-            amount_threshold = int(amount_threshold_entry.get())
+            threshold_value = int(threshold_entry.get())
         except ValueError:
-            amount_threshold = None
+            threshold_value = None
         try:
             chunk_size = int(chunk_size_entry.get())
         except ValueError:
@@ -304,7 +361,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category, verbose):
             end_date,
             cutoff_date,
             resample_rule,
-            amount_threshold,
+            threshold_value,
             chunk_size,
         )
 
@@ -313,7 +370,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category, verbose):
         end_date_entry,
         cutoff_date_entry,
         resample_option,
-        amount_threshold_entry,
+        threshold_entry,
         chunk_size_entry,
     ) = create_settings_panel(frame, apply_date_filter)
 
@@ -329,12 +386,12 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category, verbose):
 
     # Function to update the plot with the selected date range.
     def update_plot(
-        start_date, end_date, cutoff_date, resample_rule, amount_threshold, chunk_size
+        start_date, end_date, cutoff_date, resample_rule, threshold_value, chunk_size
     ):
         nonlocal plot_canvas, no_data_label
 
-        if amount_threshold == 0:
-            amount_threshold = None
+        if threshold_value == 0:
+            threshold_value = None
 
         # Clear previous plot or message.
         if plot_canvas is not None:
@@ -349,7 +406,7 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category, verbose):
             original_transactions,
             start_date,
             end_date,
-            amount_threshold,
+            threshold_value,
             chunk_size,
             verbose,
         )
@@ -564,15 +621,15 @@ def init_tab(notebook, transactions: pd.DataFrame, by_category, verbose):
     cutoff_date = pd.to_datetime(cutoff_date_entry.get())
     resample_rule = resample_option.get()
     try:
-        amount_threshold = int(amount_threshold_entry.get())
+        threshold_value = int(threshold_entry.get())
     except ValueError:
-        amount_threshold = None
+        threshold_value = None
     try:
         chunk_size = int(chunk_size_entry.get())
     except ValueError:
         chunk_size = None
     update_plot(
-        start_date, end_date, cutoff_date, resample_rule, amount_threshold, chunk_size
+        start_date, end_date, cutoff_date, resample_rule, threshold_value, chunk_size
     )
 
 
