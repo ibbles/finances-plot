@@ -17,7 +17,11 @@ import pandas as pd
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from tabs.index_funds import get_index_fund_accounts, prepare_index_fund_series
+from tabs.index_funds import (
+    get_index_fund_accounts,
+    prepare_index_fund_series,
+    prepare_index_fund_series_for_accounts,
+)
 
 
 def make_transactions(rows):
@@ -170,6 +174,82 @@ class IndexFundsTests(unittest.TestCase):
         )
 
         self.assertEqual(get_index_fund_accounts(transactions), ["Fund"])
+
+    def test_combined_series_sums_overlapping_funds(self):
+        transactions = make_transactions(
+            [
+                ("2024-01-01", 1000, "Fund A", "", ""),
+                ("2024-02-01", 100, "Fund A", "Avkastning", ""),
+                ("2024-01-01", 2000, "Fund B", "", ""),
+                ("2024-02-01", -200, "Fund B", "Negativ avkastning", ""),
+            ]
+        )
+
+        result = prepare_index_fund_series_for_accounts(
+            transactions,
+            ["Fund A", "Fund B"],
+            pd.Timestamp("2024-01-01"),
+            pd.Timestamp("2024-02-01"),
+        )
+
+        self.assertEqual(list(result["value"]), [3000, 2900])
+        self.assertEqual(list(result["principal_basis"]), [3000, 3000])
+        self.assertEqual(list(result["deposit_value"]), [3000, 2900])
+        self.assertEqual(list(result["positive_returns"]), [0, 0])
+        self.assertEqual(list(result["principal_loss"]), [0, 100])
+
+    def test_combined_series_handles_non_overlapping_fund_histories(self):
+        transactions = make_transactions(
+            [
+                ("2024-01-01", 1000, "Fund A", "", ""),
+                ("2024-02-01", 100, "Fund A", "Avkastning", ""),
+                ("2024-03-01", 2000, "Fund B", "", ""),
+                ("2024-04-01", 200, "Fund B", "Avkastning", ""),
+            ]
+        )
+
+        result = prepare_index_fund_series_for_accounts(
+            transactions,
+            ["Fund A", "Fund B"],
+            pd.Timestamp("2024-01-01"),
+            pd.Timestamp("2024-04-01"),
+        )
+
+        self.assertEqual(
+            list(result["date"]),
+            [
+                pd.Timestamp("2024-01-01"),
+                pd.Timestamp("2024-02-01"),
+                pd.Timestamp("2024-03-01"),
+                pd.Timestamp("2024-04-01"),
+            ],
+        )
+        self.assertEqual(list(result["value"]), [1000, 1100, 3100, 3300])
+        self.assertEqual(list(result["principal_basis"]), [1000, 1000, 3000, 3000])
+        self.assertEqual(list(result["positive_returns"]), [0, 100, 100, 300])
+
+    def test_combined_series_ignores_counterpart_account_rows(self):
+        transactions = make_transactions(
+            [
+                ("2024-01-01", -1000, "Buffer", "", "Rebalansering to Fund A"),
+                ("2024-01-01", 1000, "Fund A", "", ""),
+                ("2024-02-01", 100, "Fund A", "Avkastning", ""),
+                ("2024-01-01", -2000, "Buffer", "", "Rebalansering to Fund B"),
+                ("2024-01-01", 2000, "Fund B", "", ""),
+                ("2024-02-01", 200, "Fund B", "Avkastning", ""),
+            ]
+        )
+
+        result = prepare_index_fund_series_for_accounts(
+            transactions,
+            ["Fund A", "Fund B"],
+            pd.Timestamp("2024-01-01"),
+            pd.Timestamp("2024-02-01"),
+        )
+
+        self.assertEqual(result["value"].iloc[-1], 3300)
+        self.assertEqual(result["principal_basis"].iloc[-1], 3000)
+        self.assertEqual(result["positive_returns"].iloc[-1], 300)
 
 
 if __name__ == "__main__":

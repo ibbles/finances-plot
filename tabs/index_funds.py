@@ -14,6 +14,15 @@ import tab
 
 
 RETURN_CATEGORIES = {"Avkastning", "Negativ avkastning"}
+ALL_ACCOUNTS_LABEL = "(ALL)"
+PLOT_COLUMNS = [
+    "date",
+    "value",
+    "principal_basis",
+    "deposit_value",
+    "positive_returns",
+    "principal_loss",
+]
 
 
 def is_return_category(category) -> bool:
@@ -56,15 +65,6 @@ def prepare_index_fund_series(
     end_date: pd.Timestamp,
 ) -> pd.DataFrame:
     """Build the accounting series used by the index-funds plot."""
-    columns = [
-        "date",
-        "value",
-        "principal_basis",
-        "deposit_value",
-        "positive_returns",
-        "principal_loss",
-    ]
-
     start_date = pd.to_datetime(start_date)
     end_date = pd.to_datetime(end_date)
     if start_date > end_date:
@@ -72,7 +72,7 @@ def prepare_index_fund_series(
 
     account_transactions = transactions[transactions["account"] == account].copy()
     if len(account_transactions) == 0:
-        return pd.DataFrame(columns=columns)
+        return pd.DataFrame(columns=PLOT_COLUMNS)
 
     account_transactions["_row_order"] = range(len(account_transactions))
     account_transactions["date"] = pd.to_datetime(account_transactions["date"])
@@ -81,7 +81,7 @@ def prepare_index_fund_series(
     ].sort_values(["date", "_row_order"])
 
     if len(account_transactions) == 0:
-        return pd.DataFrame(columns=columns)
+        return pd.DataFrame(columns=PLOT_COLUMNS)
 
     value = 0.0
     principal_basis = 0.0
@@ -129,7 +129,7 @@ def prepare_index_fund_series(
         )
 
     if len(state_rows) == 0:
-        return pd.DataFrame(columns=columns)
+        return pd.DataFrame(columns=PLOT_COLUMNS)
 
     if state_rows[-1]["date"] < end_date:
         state_rows.append(
@@ -140,7 +140,56 @@ def prepare_index_fund_series(
             )
         )
 
-    return pd.DataFrame(state_rows, columns=columns)
+    return pd.DataFrame(state_rows, columns=PLOT_COLUMNS)
+
+
+def prepare_index_fund_series_for_accounts(
+    transactions: pd.DataFrame,
+    accounts: list[str],
+    start_date: pd.Timestamp,
+    end_date: pd.Timestamp,
+) -> pd.DataFrame:
+    """Build a combined plot series by summing independently-accounted funds."""
+    if len(accounts) == 0:
+        return pd.DataFrame(columns=PLOT_COLUMNS)
+
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date)
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
+
+    account_series = [
+        prepare_index_fund_series(transactions, account, start_date, end_date)
+        for account in accounts
+    ]
+    account_series = [series for series in account_series if len(series) > 0]
+    if len(account_series) == 0:
+        return pd.DataFrame(columns=PLOT_COLUMNS)
+
+    all_dates = {start_date, end_date}
+    for series in account_series:
+        all_dates.update(series["date"])
+    all_dates = sorted(all_dates)
+
+    combined = pd.DataFrame({"date": all_dates}).set_index("date")
+    summed_columns = ["value", "principal_basis"]
+    for column in summed_columns:
+        combined[column] = 0.0
+
+    for series in account_series:
+        expanded_series = (
+            series.set_index("date")
+            .reindex(all_dates)
+            .ffill()
+            .fillna(0.0)
+        )
+        combined[summed_columns] += expanded_series[summed_columns]
+
+    combined_rows = [
+        create_state_row(date, row["value"], row["principal_basis"])
+        for date, row in combined.iterrows()
+    ]
+    return pd.DataFrame(combined_rows, columns=PLOT_COLUMNS)
 
 
 def create_settings_panel(frame: ttk.Frame, accounts: list[str], apply_callback):
@@ -206,6 +255,7 @@ def init_tab(notebook, transactions: pd.DataFrame):
     notebook.add(frame, text="Index Funds")
 
     accounts = get_index_fund_accounts(transactions)
+    account_options = [ALL_ACCOUNTS_LABEL] + accounts if len(accounts) > 0 else []
     original_transactions = transactions.copy()
 
     plot_frame = ttk.Frame(frame)
@@ -214,9 +264,14 @@ def init_tab(notebook, transactions: pd.DataFrame):
     no_data_label = None
 
     def update_date_entries_for_account(account: str):
-        account_transactions = original_transactions[
-            original_transactions["account"] == account
-        ]
+        if account == ALL_ACCOUNTS_LABEL:
+            account_transactions = original_transactions[
+                original_transactions["account"].isin(accounts)
+            ]
+        else:
+            account_transactions = original_transactions[
+                original_transactions["account"] == account
+            ]
         if len(account_transactions) == 0:
             return
         set_date_entry(start_date_entry, account_transactions["date"].min())
@@ -230,7 +285,7 @@ def init_tab(notebook, transactions: pd.DataFrame):
         )
 
     account_option, start_date_entry, end_date_entry = create_settings_panel(
-        frame, accounts, apply_settings
+        frame, account_options, apply_settings
     )
     account_option.bind(
         "<<ComboboxSelected>>",
@@ -249,9 +304,14 @@ def init_tab(notebook, transactions: pd.DataFrame):
             no_data_label.destroy()
             no_data_label = None
 
-        plot_data = prepare_index_fund_series(
-            original_transactions, account, start_date, end_date
-        )
+        if account == ALL_ACCOUNTS_LABEL:
+            plot_data = prepare_index_fund_series_for_accounts(
+                original_transactions, accounts, start_date, end_date
+            )
+        else:
+            plot_data = prepare_index_fund_series(
+                original_transactions, account, start_date, end_date
+            )
 
         if len(plot_data) == 0:
             no_data_label = ttk.Label(plot_frame, text="No data")
@@ -305,7 +365,10 @@ def init_tab(notebook, transactions: pd.DataFrame):
         axes.xaxis.set_major_formatter(ConciseDateFormatter(locator))
         axes.set_xlabel("Date")
         axes.set_ylabel("Amount")
-        axes.set_title(f"Index Fund Value: {account}")
+        if account == ALL_ACCOUNTS_LABEL:
+            axes.set_title("Index Fund Value: All Index Funds")
+        else:
+            axes.set_title(f"Index Fund Value: {account}")
         axes.grid(True)
         axes.legend(loc="best")
         figure.tight_layout()
